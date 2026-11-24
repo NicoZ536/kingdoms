@@ -47,7 +47,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 pub use building::{
-    BuildingCategory, BuildingDef, BuildingMaterial, BuildingRole, Gathering, GoodsRequirement, HousingDef, UpgradeDef,
+    Access, BuildingCategory, BuildingDef, BuildingMaterial, BuildingRole, Gathering, GoodsRequirement, HousingDef, UpgradeDef,
     HousingRequirements, JobDef, MAX_BUILDING_SIZE, OptionalInput, PlacementRule, ProductionDef, RecipeDef,
     ServiceEffect, StorageDef, StorageFilter,
 };
@@ -68,7 +68,7 @@ pub use ids::{BuildingTypeId, CropId, EventDefId, ResourceId, RoadTypeId, Scenar
 pub use resource::{ResourceCategory, ResourceDef};
 pub use road::{BridgeDef, RoadDef};
 pub use population::{MortalityStep, NameLists, NeedWeights, PopulationRules, TrainingRules, WealthRules};
-pub use progression::{DifficultyValues, EventRules, FestivalRules, ResearchRules};
+pub use progression::{DifficultyValues, EventRules, FestivalRules, NoticeRules, ResearchRules};
 pub use rules::{GameRules, SeasonValues, Wages, Weather};
 pub use scenario::{ScenarioDef, StartBuilding};
 pub use tech::{BonusTarget, TechArea, TechDef, TechEffect};

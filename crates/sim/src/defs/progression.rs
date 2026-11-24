@@ -143,6 +143,38 @@ pub struct FestivalRules {
     pub relation_max: u8,
 }
 
+/// When lasting waiting states are reported (docs/game_design.md §2 Meldungen): a building
+/// that lacks an input, finds nothing to gather or waits for room to plant, a storage without
+/// carriers, a building nobody can reach, hunger, cold and homelessness are reported once when
+/// the state begins and not again until it has ended for a while.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NoticeRules {
+    /// A building's waiting state must last this many game hours before it is reported
+    /// (deliveries on their way often end it sooner).
+    pub waiting_delay_hours: u16,
+    /// A reported waiting state counts as ended once it has not held for this many game hours
+    /// in a row; only then is it reported again (a forester that plants one sapling between two
+    /// waits stays in the same spell).
+    pub waiting_resolved_hours: u16,
+}
+
+impl NoticeRules {
+    pub(crate) fn validate(&self, p: &mut Problems, loc: &Loc<'_>) {
+        p.check(self.waiting_resolved_hours > 0, loc, || "notices.waiting_resolved_hours must be positive".into());
+    }
+
+    /// [`NoticeRules::waiting_delay_hours`] in ticks.
+    pub fn delay_ticks(&self) -> u64 {
+        u64::from(self.waiting_delay_hours) * crate::time::TICKS_PER_HOUR
+    }
+
+    /// [`NoticeRules::waiting_resolved_hours`] in ticks.
+    pub fn resolved_ticks(&self) -> u64 {
+        u64::from(self.waiting_resolved_hours) * crate::time::TICKS_PER_HOUR
+    }
+}
+
 impl FestivalRules {
     pub(crate) fn validate(&self, p: &mut Problems, loc: &Loc<'_>) {
         p.check(self.festival_days > 0 && self.happiness > 0 && self.happiness_days > 0, loc, || {

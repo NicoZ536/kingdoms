@@ -9,17 +9,10 @@ use super::{Cycle, MILLI_PER_UNIT, ProductionState, ProductionStatus, milli, pro
 use crate::buildings::BuildingId;
 use crate::grid::TileRect;
 use crate::defs::{BuildingDef, Defs, Gathering, ProductionDef, RecipeDef, ResourceAmount, ResourceId};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
-use crate::time::{TICKS_PER_DAY, TICKS_PER_HOUR};
+use crate::time::TICKS_PER_HOUR;
 use crate::world::{DepositKind, Vegetation};
-
-/// Minimum ticks between two warnings (shortage, nothing to gather) of the same building.
-const WARNING_INTERVAL: u64 = TICKS_PER_DAY / 2;
-
-/// A problem must last this long before the player is warned (deliveries on their way often
-/// solve it sooner).
-const WARNING_DELAY: u64 = TICKS_PER_HOUR;
 
 /// Season and weather factor on the production of buildings of type `def` in permille
 /// (winter work speed, outdoor weather, seasonal fishing/pasture/bees; see
@@ -170,14 +163,22 @@ pub(crate) fn update_status(
     if status != ProductionStatus::Working {
         p.last_productivity_permille = 0;
     }
+    // A reported spell that has been over long enough ends before a new status is looked at.
+    if p.resolved_since.is_some_and(|t| tick.saturating_sub(t) >= defs.rules().notices.resolved_ticks()) {
+        p.reported = None;
+        p.resolved_since = None;
+    }
     if status != p.status {
         let idle_changed = crate::workforce::is_idle_status(p.status) != crate::workforce::is_idle_status(status);
         p.status = status;
-        p.problem_since = matches!(
-            status,
-            ProductionStatus::MissingInput(_) | ProductionStatus::NoResourcesInRange | ProductionStatus::NoPlantingSpace
-        )
-        .then_some(tick);
+        p.problem_since = is_waiting(status).then_some(tick);
+        // The reported spell goes on while its status returns, and ends only after it stayed
+        // away for `notices.waiting_resolved_hours` (see `report_waiting`).
+        if p.reported == Some(status) {
+            p.resolved_since = None;
+        } else if p.reported.is_some() && p.resolved_since.is_none() {
+            p.resolved_since = Some(tick);
+        }
         events.push(SimEvent::ProductionStatusChanged { building: id, status });
         if idle_changed {
             // Idle buildings are staffed last (crate::workforce).
@@ -187,51 +188,55 @@ pub(crate) fn update_status(
     warn_if_stuck(state, defs, id, def, events);
 }
 
-/// Warns about a missing input (that is not on its way) or an empty gathering area once the
-/// problem lasted [`WARNING_DELAY`]; at most once per [`WARNING_INTERVAL`] per building.
+/// True for the waiting states that are reported once per spell (docs/game_design.md §2
+/// Meldungen): a missing input, nothing to gather in the radius, no room to plant.
+fn is_waiting(status: ProductionStatus) -> bool {
+    matches!(status, ProductionStatus::MissingInput(_) | ProductionStatus::NoResourcesInRange | ProductionStatus::NoPlantingSpace)
+}
+
+/// Reports a waiting state once per spell (docs/game_design.md §2 Meldungen): when it has
+/// lasted `notices.waiting_delay_hours` (a missing input only while none is on its way), and
+/// again only after the reported state stayed away for `notices.waiting_resolved_hours` in a
+/// row. The status itself stays visible in the building's report. A dense forest is a neutral
+/// information, the others are warnings.
 fn warn_if_stuck(state: &mut GameState, defs: &Defs, id: BuildingId, def: &BuildingDef, events: &mut Vec<SimEvent>) {
     let tick = state.clock.tick;
+    let rules = &defs.rules().notices;
     let Some(b) = state.buildings.get(id) else { return };
     let position = b.entrance();
     let Some(p) = b.production.as_ref() else { return };
     let Some(since) = p.problem_since else { return };
-    // A dense forest is no shortage: a neutral notice once per spell, no reminders, and at most
-    // once per building and day (a forester switches between planting and waiting whenever a
-    // tree is felled).
-    let dense_forest = p.status == ProductionStatus::NoPlantingSpace;
-    let due = tick.saturating_sub(since) >= WARNING_DELAY
-        && p.last_warning_tick.is_none_or(|t| {
-            if dense_forest {
-                t < since && t / TICKS_PER_DAY < tick / TICKS_PER_DAY
-            } else {
-                tick.saturating_sub(t) >= WARNING_INTERVAL
-            }
-        });
-    if !due {
+    if tick.saturating_sub(since) < rules.delay_ticks() || p.reported == Some(p.status) {
         return;
     }
-    let text = match p.status {
+    let status = p.status;
+    let (kind, text) = match status {
         ProductionStatus::MissingInput(resource) => {
             if state.logistics.incoming(id, resource) > 0 {
                 return;
             }
             let name = defs.resources().get(resource.index()).map_or_else(|| resource.to_string(), |r| r.name.clone());
             events.push(SimEvent::Shortage { building: id, resource, position });
-            format!("Rohstoffmangel: Dem Gebäude „{}“ fehlt {name}.", def.name)
+            (NotificationKind::MissingInput, format!("Rohstoffmangel: Dem Gebäude „{}“ fehlt {name}.", def.name))
         }
-        ProductionStatus::NoResourcesInRange => match crate::agriculture::farm_spec(def) {
-            Some(_) => format!("{}: kein freies Acker- oder Weideland im Umkreis.", def.name),
-            None => format!("{}: keine Rohstoffe im Umkreis.", def.name),
-        },
-        ProductionStatus::NoPlantingSpace => {
-            format!("{}: Der Wald im Umkreis ist dicht – gepflanzt wird wieder, sobald Platz frei wird.", def.name)
-        }
+        ProductionStatus::NoResourcesInRange => (
+            NotificationKind::NoResources,
+            match crate::agriculture::farm_spec(def) {
+                Some(_) => format!("{}: kein freies Acker- oder Weideland im Umkreis.", def.name),
+                None => format!("{}: keine Rohstoffe im Umkreis.", def.name),
+            },
+        ),
+        ProductionStatus::NoPlantingSpace => (
+            NotificationKind::DenseForest,
+            format!("{}: Der Wald im Umkreis ist dicht – gepflanzt wird wieder, sobald Platz frei wird.", def.name),
+        ),
         _ => return,
     };
-    let severity = if dense_forest { Severity::Info } else { Severity::Warning };
-    events.push(SimEvent::Notification(Notification::new(severity, text).at(position)));
+    let severity = if status == ProductionStatus::NoPlantingSpace { Severity::Info } else { Severity::Warning };
+    events.push(SimEvent::Notification(Notification::new(severity, text).with_kind(kind).at(position).for_building(id)));
     if let Some(p) = state.buildings.get_mut(id).and_then(|b| b.production.as_mut()) {
-        p.last_warning_tick = Some(tick);
+        p.reported = Some(status);
+        p.resolved_since = None;
     }
 }
 

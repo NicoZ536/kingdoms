@@ -623,6 +623,9 @@ impl CrossCheck<'_> {
             if t.role != b.role || matches!(b.role, BuildingRole::WallSegment | BuildingRole::Gate) {
                 fail(self.problems, "needs the same role (walls and gates cannot be upgraded)");
             }
+            if t.access != b.access {
+                fail(self.problems, "needs the same access (a tower on a wall line stays reachable)");
+            }
             if t.size.x < b.size.x || t.size.y < b.size.y {
                 fail(self.problems, "the footprint must not shrink");
             }

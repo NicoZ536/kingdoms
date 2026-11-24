@@ -17,7 +17,7 @@ use crate::command::{CommandResult, RejectReason};
 use crate::defs::{Defs, ServiceKind};
 use crate::diplomacy::MemoryCause;
 use crate::economy::LedgerCategory;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 
 /// Title of the festival in modifier rows and texts.
@@ -171,7 +171,7 @@ pub(crate) fn hold(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEvent
         if rules.happiness_days == 1 { "1 Tag".to_owned() } else { format!("{} Tage", rules.happiness_days) },
         rules.happiness
     );
-    let mut note = Notification::new(Severity::Good, text);
+    let mut note = Notification::new(Severity::Good, text).with_kind(NotificationKind::Festival);
     if let Some(at) = crate::economy::storage::main_headquarters(state, defs).and_then(|b| state.buildings.get(b)).map(|b| b.entrance()) {
         note = note.at(at);
     }

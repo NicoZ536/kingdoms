@@ -20,8 +20,8 @@
 //! door to the destination's entrance; the step out of the door and into the destination's
 //! door are part of it. Without a path the walker stays where it is ([`TripPhase::NoPath`],
 //! inside a building it stays inside), tries again after `walking.no_path_retry_ticks` and the
-//! destination is reported ("Kein Weg …", at most every [`NO_PATH_NOTICE_TICKS`] per
-//! building).
+//! destination is reported ("Kein Weg …", once per spell of failed searches per building,
+//! `crate::notices`).
 //!
 //! ## Movement
 //! Every tick each walking walker advances by its speed: `base_walk_speed` (tiles per tick)
@@ -46,18 +46,15 @@ use super::{CitizenId, LifeStage};
 use crate::buildings::BuildingId;
 use crate::defs::{Defs, Weather};
 use crate::economy::storage;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::grid::Direction;
 use crate::ids::{Arena, Id};
 use crate::navigation;
 use crate::state::GameState;
-use crate::time::TICKS_PER_HOUR;
 
 /// Sub-tile units per tile edge: positions are stored in 1/256 tile.
 pub const SUBTILE: i32 = 256;
 
-/// Minimum ticks between two "Kein Weg" notifications about the same building (6 hours).
-pub const NO_PATH_NOTICE_TICKS: u64 = 6 * TICKS_PER_HOUR;
 
 /// A map position in 1/[`SUBTILE`] tile. Tile `(x, y)` covers `x·256 ..= x·256 + 255`; its
 /// centre is `x·256 + 128`.
@@ -420,8 +417,9 @@ pub struct Walking {
     /// Node expansions earlier ticks spent on the first request (a long search continues).
     pub(crate) head_progress: u32,
     pub(crate) travelers: Arena<Traveler>,
-    /// Tick of the last "Kein Weg" notification per destination building.
-    pub(crate) no_path_notices: BTreeMap<BuildingId, u64>,
+    /// "Kein Weg" per destination building: reported once per spell (docs/game_design.md §2
+    /// Meldungen), the tick of the last failed search.
+    pub(crate) no_path_notices: crate::notices::Spells<BuildingId>,
     #[serde(skip)]
     pub(crate) index: SpatialIndex,
     /// Walkers moving or just stopped (prev ≠ pos), sorted; rebuilt after loading.
@@ -771,12 +769,9 @@ pub(crate) fn run_movement(state: &mut GameState, defs: &Defs, events: &mut Vec<
     super::supply::buy_at_venues(state, defs, &guests);
     if state.clock.is_new_hour() {
         let now = state.clock.tick;
+        let gap = defs.rules().notices.resolved_ticks();
         let buildings = &state.buildings;
-        state
-            .population
-            .walking
-            .no_path_notices
-            .retain(|b, t| buildings.get(*b).is_some() && now < t.saturating_add(NO_PATH_NOTICE_TICKS));
+        state.population.walking.no_path_notices.prune(now, gap, |b| buildings.get(b).is_some());
     }
 }
 
@@ -853,27 +848,53 @@ struct TripStart {
     door: Option<IVec2>,
 }
 
-fn trip_start(state: &GameState, m: &Motion) -> Option<TripStart> {
-    if let Some(b) = m.inside.and_then(|b| state.buildings.get(b)) {
-        // Out through the door onto the entrance tile.
-        return b.entrance_reachable(&state.world).then(|| TripStart {
-            from: b.entrance(),
-            prefix: vec![b.facing()],
-            door: Some(b.door()),
-        });
+/// Where a trip can begin, most preferred first: out of the building the walker is in onto one
+/// of its access tiles (the entrance; for buildings entered from any side also the other
+/// walkable neighbours, [`crate::buildings::access_points`]), or the tile it stands on (out of
+/// a footprint built under its feet first).
+fn trip_starts(state: &GameState, defs: &Defs, m: &Motion) -> Vec<TripStart> {
+    if let Some((id, b)) = m.inside.and_then(|id| state.buildings.get(id).map(|b| (id, b))) {
+        // Out through the door onto an access tile.
+        let door = b.door();
+        return crate::buildings::access_points(state, defs, id)
+            .into_iter()
+            .map(|a| TripStart { from: a.tile, prefix: vec![a.into.opposite()], door: Some(door) })
+            .collect();
     }
     let tile = m.pos.tile();
     if state.navigation.is_walkable(tile) || state.buildings.at(tile).is_none() {
-        return Some(TripStart { from: tile, prefix: Vec::new(), door: None });
+        return vec![TripStart { from: tile, prefix: Vec::new(), door: None }];
     }
-    // Something was built where the walker stands: it walks out of the footprint first.
-    escape_route(state, tile).map(|(prefix, from)| TripStart { from, prefix, door: None })
+    // Something was built where the walker stands (or it stands on a door it came out of): it
+    // walks out of the footprint first, by the shortest way that leads on to the goal.
+    escape_routes(state, tile).into_iter().map(|(prefix, from)| TripStart { from, prefix, door: None }).collect()
 }
 
-/// The shortest way out of the footprint covering `start` (breadth-first inside the
-/// footprint, directions in N, E, S, W order): the steps and the enterable tile they end on.
-fn escape_route(state: &GameState, start: IVec2) -> Option<(Vec<Direction>, IVec2)> {
-    let rect = state.buildings.at(start)?.1.rect();
+/// The start and goal of a trip: with several candidates (buildings entered from any side) the
+/// first start, in order, from which some goal is reachable, with the first such goal; else the
+/// first of each (the search then reports that there is no way).
+fn pick_trip(state: &mut GameState, starts: Vec<TripStart>, goals: Vec<Goal>) -> Option<(TripStart, Goal)> {
+    if starts.len() > 1 || goals.len() > 1 {
+        let found = starts.iter().enumerate().find_map(|(i, s)| {
+            goals.iter().position(|g| state.navigation.reachable(s.from, g.0)).map(|j| (i, j))
+        });
+        if let Some((i, j)) = found {
+            return starts.into_iter().nth(i).zip(goals.into_iter().nth(j));
+        }
+    }
+    starts.into_iter().next().zip(goals.into_iter().next())
+}
+
+/// A goal tile and the step into the destination building's door after it, if any.
+type Goal = (IVec2, Option<Direction>);
+
+/// The ways out of the footprint covering `start`, shortest first (breadth-first inside the
+/// footprint, directions in N, E, S, W order): the steps and the enterable tile they end on,
+/// each exit tile once. Several, so that the trip can leave on the side its goal is reachable
+/// from (one side may face a pocket, [`pick_trip`]).
+fn escape_routes(state: &GameState, start: IVec2) -> Vec<(Vec<Direction>, IVec2)> {
+    let Some((_, building)) = state.buildings.at(start) else { return Vec::new() };
+    let rect = building.rect();
     let mut came: BTreeMap<(i32, i32), Direction> = BTreeMap::new();
     let mut queue = VecDeque::from([start]);
     let back = |came: &BTreeMap<(i32, i32), Direction>, mut p: IVec2| {
@@ -886,6 +907,7 @@ fn escape_route(state: &GameState, start: IVec2) -> Option<(Vec<Direction>, IVec
         steps.reverse();
         steps
     };
+    let mut exits: Vec<(Vec<Direction>, IVec2)> = Vec::new();
     while let Some(p) = queue.pop_front() {
         for d in Direction::ALL {
             let q = p + d.offset();
@@ -894,14 +916,14 @@ fn escape_route(state: &GameState, start: IVec2) -> Option<(Vec<Direction>, IVec
                     came.insert((q.x, q.y), d);
                     queue.push_back(q);
                 }
-            } else if state.navigation.step_cost(p, d).is_some() {
+            } else if state.navigation.step_cost(p, d).is_some() && !exits.iter().any(|(_, t)| *t == q) {
                 let mut steps = back(&came, p);
                 steps.push(d);
-                return Some((steps, q));
+                exits.push((steps, q));
             }
         }
     }
-    None
+    exits
 }
 
 /// True for a step out of (or through) a footprint the walker is caught in: from a blocked
@@ -936,23 +958,20 @@ fn plan_trip(
     let Some(m) = motion_of(state, id) else { return Some(0) };
     let now = state.clock.tick;
     let dest = m.dest;
-    let goal = match dest {
+    // Goal tiles: empty if there is no way to stand there or enter.
+    let goals: Option<Vec<Goal>> = match dest {
         None => None,
-        Some(Destination::MapEdge(tile)) => Some(Ok((tile, None))),
-        Some(Destination::Tile(tile)) if state.navigation.is_walkable(tile) => Some(Ok((tile, None))),
-        Some(Destination::Tile(_)) => Some(Err(())),
-        Some(Destination::Spot { building, tile }) => match state.buildings.get(building) {
-            None => None,
-            Some(_) if state.navigation.is_walkable(tile) => Some(Ok((tile, None))),
-            Some(_) => Some(Err(())),
-        },
-        Some(Destination::Building { building, .. }) => match state.buildings.get(building) {
-            None => None,
-            Some(b) if b.entrance_reachable(&state.world) => Some(Ok((b.entrance(), Some(b.facing().opposite())))),
-            Some(_) => Some(Err(())),
-        },
+        Some(Destination::MapEdge(tile)) => Some(vec![(tile, None)]),
+        Some(Destination::Tile(tile)) => Some(if state.navigation.is_walkable(tile) { vec![(tile, None)] } else { Vec::new() }),
+        Some(Destination::Spot { building, tile }) => state
+            .buildings
+            .get(building)
+            .map(|_| if state.navigation.is_walkable(tile) { vec![(tile, None)] } else { Vec::new() }),
+        Some(Destination::Building { building, .. }) => state.buildings.get(building).map(|_| {
+            crate::buildings::access_points(state, defs, building).into_iter().map(|a| (a.tile, Some(a.into))).collect()
+        }),
     };
-    let Some(goal) = goal else {
+    let Some(goals) = goals else {
         // The destination vanished: stay; the routine picks a new one.
         if let Some(m) = motion_mut(state, id) {
             m.dest = None;
@@ -968,9 +987,9 @@ fn plan_trip(
         }
         return Some(0);
     }
-    let start = trip_start(state, m);
-    let (result, expansions) = match (start, goal) {
-        (Some(start), Ok((to, enter))) => {
+    let starts = trip_starts(state, defs, m);
+    let (result, expansions) = match pick_trip(state, starts, goals) {
+        Some((start, (to, enter))) => {
             let answer = match state.navigation.find_path_sliced(start.from, to, already, allowance, defs) {
                 navigation::PathAnswer::Done(answer) => answer,
                 navigation::PathAnswer::Pending => return None,
@@ -1037,12 +1056,12 @@ fn start_walking(
 }
 
 fn notify_no_path(state: &mut GameState, defs: &Defs, building: BuildingId, purpose: Purpose, events: &mut Vec<SimEvent>) {
+    // Walkers try again every few minutes: one notice per spell of failed searches.
     let now = state.clock.tick;
-    let notices = &mut state.population.walking.no_path_notices;
-    if notices.get(&building).is_some_and(|t| now < t.saturating_add(NO_PATH_NOTICE_TICKS)) {
+    let gap = defs.rules().notices.resolved_ticks();
+    if !state.population.walking.no_path_notices.begins(building, now, gap) {
         return;
     }
-    notices.insert(building, now);
     let Some(b) = state.buildings.get(building) else { return };
     let name = defs.buildings().get(b.kind().index()).map_or("Gebäude", |d| d.name.as_str());
     let text = match purpose {
@@ -1055,7 +1074,9 @@ fn notify_no_path(state: &mut GameState, defs: &Defs, building: BuildingId, purp
         }
         Purpose::Pickup | Purpose::Delivery => format!("Kein Weg: Das Gebäude „{name}“ ist für die Träger nicht erreichbar."),
     };
-    events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).at(b.entrance())));
+    events.push(SimEvent::Notification(
+        Notification::new(Severity::Warning, text).with_kind(NotificationKind::NoPath).at(b.entrance()).for_building(building),
+    ));
 }
 
 /// What happened to a walker this tick.
@@ -1356,9 +1377,6 @@ pub(crate) fn validate(state: &GameState, defs: &Defs) -> Result<(), String> {
     {
         return Err("path search progress without a matching request".into());
     }
-    let now = state.clock.tick;
-    if walking.no_path_notices.values().any(|t| *t > now) {
-        return Err("no-path notification in the future".into());
-    }
+    walking.no_path_notices.validate(state.clock.tick, "no-path notices")?;
     Ok(())
 }

@@ -10,6 +10,9 @@
 //   cost and build_hours; the building keeps workers, stock, buffers, recipes and orders,
 //   outdoor (work outside: weather changes the work speed, doc §8.2),
 //   role (General | Headquarters | TradeHub | WallSegment | Gate),
+//   access (Entrance | AnySide) — AnySide (1x1, no storage): walkers enter from any walkable
+//   neighbour tile, the entrance first, and the construction site needs no road (walls, gates,
+//   towers on a wall line; doc §5.5),
 //   production: (gathering, recipes: [(id, name, inputs, optional_inputs, outputs, hours)],
 //                uses_tools, buffer), housing: (capacity, tier, class, tax_per_resident,
 //   income_per_worker (household earnings per working member and day, doc §6),
@@ -824,7 +827,7 @@
         defense: (hit_points: 1200),
     ),
     (
-        id: "watchtower", name: "Wachturm", plural: "Wachtürme", category: Military, size: (1, 1), material: Stone,
+        id: "watchtower", name: "Wachturm", plural: "Wachtürme", category: Military, size: (1, 1), material: Stone, access: AnySide,
         description: "Sicht und Sicherheit im Umkreis von 10 Feldern; Platz für einen Bogenschützen. Erweitert das Gebiet um 8 Felder.",
         cost: (gold: 40, materials: {"stone": 10, "planks": 6}), build_hours: 4.0,
         upkeep: 2,
@@ -835,7 +838,7 @@
         upgrade: (to: "stone_tower"),
     ),
     (
-        id: "stone_tower", name: "Wehrturm", plural: "Wehrtürme", category: Military, size: (1, 1), material: Stone, buildable: false,
+        id: "stone_tower", name: "Wehrturm", plural: "Wehrtürme", category: Military, size: (1, 1), material: Stone, buildable: false, access: AnySide,
         description: "Ausgebauter Wachturm aus Stein: Sicherheit im Umkreis von 12 Feldern, Platz für zwei Schützen, größere Reichweite. Erweitert das Gebiet um 10 Felder.",
         cost: (gold: 60, materials: {"stone": 20, "planks": 4}), build_hours: 6.0,
         upkeep: 3,
@@ -881,13 +884,13 @@
         defense: (hit_points: 800),
     ),
     (
-        id: "wall", name: "Stadtmauer", category: Military, size: (1, 1), role: WallSegment, material: Stone,
+        id: "wall", name: "Stadtmauer", category: Military, size: (1, 1), role: WallSegment, material: Stone, access: AnySide,
         description: "Mauerabschnitt; wird wie eine Straße gezogen und verbindet sich automatisch.",
         cost: (gold: 3, materials: {"stone": 3}), build_hours: 1.0,
         defense: (hit_points: 400),
     ),
     (
-        id: "gate", name: "Tor", category: Military, size: (1, 1), role: Gate, material: Stone,
+        id: "gate", name: "Tor", category: Military, size: (1, 1), role: Gate, material: Stone, access: AnySide,
         description: "Durchgang in der Stadtmauer für die eigenen Leute.",
         cost: (gold: 25, materials: {"stone": 10, "planks": 6}), build_hours: 3.0,
         defense: (hit_points: 300),

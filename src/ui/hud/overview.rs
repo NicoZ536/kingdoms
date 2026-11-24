@@ -179,6 +179,10 @@ impl Overview {
                 target: Some(Target::Window(Tab::Agriculture)),
             });
         }
+        let fuel = report::fuel_forecast(state, defs);
+        if let Some(threat) = fuel_threat(&fuel) {
+            threats.push(threat);
+        }
         let ruins: Vec<(BuildingId, IVec2)> = state
             .buildings()
             .iter()
@@ -261,6 +265,24 @@ impl Overview {
             recent,
         }
     }
+}
+
+/// The fuel line of the threats while wood and coal for heating run short in the heating season
+/// (`FuelForecast::short`, the state behind the warning „Brennholz wird knapp“).
+fn fuel_threat(fuel: &report::FuelForecast) -> Option<Threat> {
+    if !fuel.short {
+        return None;
+    }
+    let days = fuel.days.unwrap_or(0);
+    Some(Threat {
+        severity: if days == 0 { Severity::Danger } else { Severity::Warning },
+        text: if days == 0 {
+            "Das Brennholz reicht keinen Tag mehr – die Häuser frieren".to_owned()
+        } else {
+            format!("Das Brennholz reicht nur noch für etwa {}", count(u64::from(days), "Tag", "Tage"))
+        },
+        target: Some(Target::Window(Tab::Agriculture)),
+    })
 }
 
 fn severity_rank(severity: Severity) -> u8 {
@@ -431,6 +453,20 @@ mod tests {
     use super::*;
     use kingdoms_sim::state::GameSettings;
     use kingdoms_sim::world::WorldSize;
+
+    #[test]
+    fn short_fuel_is_a_threat_in_the_heating_season() {
+        let mut f = report::FuelForecast { in_stock: 200.0, per_day: 100.0, heating_season: true, reserve: 200.0, days: Some(2), short: true, summary: String::new() };
+        let t = fuel_threat(&f).expect("a threat");
+        assert_eq!((t.severity, t.text.as_str()), (Severity::Warning, "Das Brennholz reicht nur noch für etwa 2 Tage"));
+        assert_eq!(t.target, Some(Target::Window(Tab::Agriculture)));
+        f.days = Some(1);
+        assert_eq!(fuel_threat(&f).map(|t| t.text), Some("Das Brennholz reicht nur noch für etwa 1 Tag".to_owned()));
+        f.days = Some(0);
+        assert_eq!(fuel_threat(&f).map(|t| t.severity), Some(Severity::Danger));
+        f.short = false;
+        assert_eq!(fuel_threat(&f), None);
+    }
 
     #[test]
     fn food_days_use_the_right_number() {

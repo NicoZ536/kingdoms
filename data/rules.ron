@@ -132,6 +132,11 @@
         cooldown_days: 12,
         relation: 4, relation_max: 12,
     ),
+    // Notifications (doc §2 Meldungen): a lasting waiting state (missing input, nothing to
+    // gather, dense forest, no carriers, no way, hunger, cold, homeless) is reported once when it
+    // has lasted `waiting_delay_hours` and again only after it has ended for
+    // `waiting_resolved_hours` in a row.
+    notices: (waiting_delay_hours: 1, waiting_resolved_hours: 24),
     // Logistics (doc §6/§7): units per carrier trip and loading time per trip end.
     carrier_capacity: 12,
     carrier_handling_ticks: 10,
@@ -180,6 +185,11 @@
         pantry_days: 1.5,
         // Heating value per resident and winter day (wood 1.0, coal 2.5 per unit).
         fuel_per_resident_day: 0.6,
+        // Heating comes first (doc §6.1): on cold days workshops (sawmill, charcoal kiln, smelter,
+        // smithy) get wood and coal only beyond two days of the households' heating; fuel lasting
+        // fewer than three days is reported once per spell.
+        fuel_reserve_days: 2.0,
+        fuel_warning_days: 3.0,
         need_change_per_hour: 10.0,
         // Without food hunger falls from 100 to 0 in about 33 hours.
         hunger_decay_per_hour: 3.0,

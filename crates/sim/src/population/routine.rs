@@ -6,7 +6,7 @@
 //! | 22:00–06:00 | everybody | home (homeless: the camp at the main headquarters) |
 //! | 08:00–17:00 | employed adults | workplace or construction site (work starts on arrival, lunch 12:00–13:00 at the workplace; farmers +1 h in summer, −1 h in winter) |
 //! | 08:00–13:00 | children from `school_age` with a school in reach | school |
-//! | 18:00–19:00, or whenever the pantry holds no food | the first adult of a housed household | market in reach, else the storage covering the house (errands: the pantry is restocked on arrival) |
+//! | 18:00–19:00 (also on festival days), or whenever the pantry holds no food (on cold days no fuel) | the first adult of a housed household | market in reach, else the storage covering the house (errands: the pantry is restocked on arrival) |
 //! | 19:00–21:00 | every other evening, adults and elders | tavern or church in reach (alternating) |
 //! | otherwise | everybody | home |
 //!
@@ -359,14 +359,30 @@ fn workable_spot(state: &GameState, home: Option<u32>, p: IVec2) -> bool {
 }
 
 /// Tiles around `rect` (distance 1, the corners included) a builder can stand on and reach
-/// from the site's `entrance` ([`workable_spot`]), nearest to `entrance` first (ties by row,
-/// column).
-fn builder_spots(state: &GameState, rect: TileRect, entrance: IVec2) -> Vec<IVec2> {
-    let home = state.navigation.component(entrance);
+/// from the site's access ([`workable_spot`] in navigation component `home`), nearest to
+/// `entrance` first (ties by row, column).
+fn builder_spots(state: &GameState, rect: TileRect, entrance: IVec2, home: Option<u32>) -> Vec<IVec2> {
     let mut ring: Vec<IVec2> =
         rect.expanded(1).tiles().filter(|p| !rect.contains(*p) && workable_spot(state, home, *p)).collect();
     ring.sort_by_key(|p| ((*p - entrance).abs().element_sum(), p.y, p.x));
     ring
+}
+
+/// Navigation component builders reach a site from: its entrance's; for a site entered from
+/// any side (wall pieces, [`crate::defs::Access::AnySide`]) the component of an access tile in
+/// the town (that of the main headquarters' entrance), else of its first access tile.
+fn site_component(state: &GameState, defs: &Defs, building: BuildingId, entrance: IVec2) -> Option<u32> {
+    if !crate::buildings::is_open_sided(state, defs, building) {
+        return state.navigation.component(entrance);
+    }
+    let comps: Vec<u32> = crate::buildings::access_points(state, defs, building)
+        .into_iter()
+        .filter_map(|a| state.navigation.component(a.tile))
+        .collect();
+    let town = storage::main_headquarters(state, defs)
+        .and_then(|hq| state.buildings.get(hq))
+        .and_then(|b| state.navigation.component(b.entrance()));
+    town.filter(|t| comps.contains(t)).or_else(|| comps.first().copied())
 }
 
 /// True if a farmer of `farm` can reach field tile `p` on foot from the farm's entrance (the
@@ -414,7 +430,7 @@ fn work_destination(state: &GameState, defs: &Defs, id: CitizenId, building: Bui
         WorkArea::Fields => farmer_spot(state, building, c, index),
         WorkArea::Around(rect) => {
             let entrance = state.buildings.get(building).map_or(rect.origin, |b| b.entrance());
-            let spots = builder_spots(state, rect, entrance);
+            let spots = builder_spots(state, rect, entrance, site_component(state, defs, building, entrance));
             Some(if spots.is_empty() { entrance } else { spots[index % spots.len()] })
         }
     };
@@ -487,17 +503,6 @@ fn routine_destination(state: &GameState, defs: &Defs, id: CitizenId, venues: &m
         return home_dest;
     }
     let home_rect = home.and_then(|(b, _)| state.buildings.get(b)).map(|b| b.rect());
-    // Festival afternoons: celebrate at the church (else the market) in reach.
-    if state.events.festival_active(state.clock.tick)
-        && (at(r.lunch_end_hour)..at(r.home_hour)).contains(&t)
-        && !is_sick(defs, c)
-        && let Some(rect) = home_rect
-    {
-        venues.collect(state, defs);
-        if let Some(venue) = nearest(&venues.churches, &rect).or_else(|| nearest(&venues.markets, &rect)) {
-            return go(venue, Purpose::Leisure);
-        }
-    }
     let runner = errand_runner(state, defs, h);
     let errand_due = |venues: &mut Venues| -> Option<BuildingId> {
         let rect = home_rect?;
@@ -506,15 +511,35 @@ fn routine_destination(state: &GameState, defs: &Defs, id: CitizenId, venues: &m
         }
         let evening = (at(r.errand_hour)..at(r.leisure_hour)).contains(&t);
         let hungry = super::supply::pantry_without_food(state, defs, c.household);
-        if !evening && !hungry {
+        let freezing = super::supply::pantry_without_fuel(state, defs, c.household);
+        if !evening && !hungry && !freezing {
             return None;
         }
         venues.collect(state, defs);
         // The market in reach, without one the storage covering the house: the household
         // restocks its pantry there (step 3b, `supply`).
         let place = nearest(&venues.markets, &rect).or_else(|| super::supply::errand_storage(state, defs, &rect));
-        place.filter(|p| evening || super::supply::offers_food(state, defs, *p))
+        place.filter(|p| {
+            evening
+                || (hungry && super::supply::offers_food(state, defs, *p))
+                || (freezing && super::supply::offers_fuel(state, defs, *p))
+        })
     };
+    // Festival afternoons: celebrate at the church (else the market) in reach – after the
+    // errand: a feast must not leave the pantry empty (in winter the house would freeze).
+    if state.events.festival_active(state.clock.tick)
+        && (at(r.lunch_end_hour)..at(r.home_hour)).contains(&t)
+        && !is_sick(defs, c)
+        && let Some(rect) = home_rect
+    {
+        if let Some(place) = errand_due(venues) {
+            return go(place, Purpose::Errand);
+        }
+        venues.collect(state, defs);
+        if let Some(venue) = nearest(&venues.churches, &rect).or_else(|| nearest(&venues.markets, &rect)) {
+            return go(venue, Purpose::Leisure);
+        }
+    }
     if is_sick(defs, c) {
         // The household still eats: a sick runner runs the errand if nobody healthy can.
         if let Some(place) = errand_due(venues) {
@@ -547,8 +572,8 @@ fn routine_destination(state: &GameState, defs: &Defs, id: CitizenId, venues: &m
             }
         }
         LifeStage::Adult | LifeStage::Elder => {
-            // Errands in the evening, or at once when the pantry holds no food and the market
-            // (or storage) has some.
+            // Errands in the evening, or at once when the pantry holds no food (on a cold day no
+            // fuel) and the market (or storage) has some.
             if let Some(place) = errand_due(venues) {
                 return go(place, Purpose::Errand);
             }

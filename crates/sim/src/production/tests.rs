@@ -367,23 +367,31 @@ fn a_forester_in_a_dense_forest_waits_for_room_and_says_so_once() {
     assert_eq!(notices.len(), 1, "one notice for the spell, no reminders: {notices:?}");
     assert_eq!(notices[0].1.text, "Försterhaus: Der Wald im Umkreis ist dicht – gepflanzt wird wieder, sobald Platz frei wird.");
     assert_eq!(notices[0].1.severity, crate::event::Severity::Info, "a dense forest is no problem");
-    // A new spell (a tree was felled, a sapling planted, the forest closed again) is told once
-    // more – but on one day only once.
-    let mut again = Vec::new();
-    for _ in 0..2 {
-        let now = state.clock.tick;
-        state.buildings.get_mut(forester).and_then(|b| b.production.as_mut()).unwrap().problem_since = Some(now);
-        for _ in 0..6 * TICKS_PER_HOUR {
-            for e in run(&mut state, 1) {
-                if let SimEvent::Notification(n) = e
-                    && n.text.starts_with("Försterhaus")
-                {
-                    again.push(state.clock().tick / TICKS_PER_DAY);
-                }
-            }
-        }
+    assert_eq!(notices[0].1.kind, crate::event::NotificationKind::DenseForest);
+    assert_eq!(notices[0].1.building, Some(forester));
+    // A sapling planted between two waits (a tree was felled, the forest closed again within
+    // a day) is the same spell: no reminder.
+    let forester_notes = |events: Vec<SimEvent>| {
+        events.into_iter().filter(|e| matches!(e, SimEvent::Notification(n) if n.text.starts_with("Försterhaus"))).count()
+    };
+    let def = defs().building(state.building(forester).unwrap().kind()).clone();
+    let mut again = 0;
+    for _ in 0..3 {
+        let mut events = Vec::new();
+        super::cycle::update_status(&mut state, defs(), forester, &def, ProductionStatus::Working, &mut events);
+        events.extend(run(&mut state, 6 * TICKS_PER_HOUR));
+        again += forester_notes(events);
     }
-    assert_eq!(again, vec![2], "two spells on day 2, one notice");
+    assert_eq!(prod(&state, forester).status(), ProductionStatus::NoPlantingSpace);
+    assert_eq!(again, 0, "flapping between planting and waiting is one spell");
+    // Once the wait has been over for `notices.waiting_resolved_hours`, a new one is told again.
+    let resolved = defs().rules().notices.resolved_ticks();
+    let mut events = Vec::new();
+    super::cycle::update_status(&mut state, defs(), forester, &def, ProductionStatus::Working, &mut events);
+    let now = state.clock.tick;
+    state.buildings.get_mut(forester).and_then(|b| b.production.as_mut()).unwrap().resolved_since = Some(now - resolved);
+    events.extend(run(&mut state, 3 * TICKS_PER_HOUR));
+    assert_eq!(forester_notes(events), 1, "a new spell after the old one ended");
     assert!(crate::workforce::is_idle_status(ProductionStatus::NoPlantingSpace), "staffed last");
 }
 

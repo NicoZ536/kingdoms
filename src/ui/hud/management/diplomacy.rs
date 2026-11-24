@@ -20,7 +20,7 @@ use kingdoms_sim::report::{self, ActionRow, DiplomacyReport, KingdomRow, Proposa
 use kingdoms_sim::state::GameState;
 
 use super::table::{self, CellAlign, ROW_HEIGHT};
-use super::{Cached, TabContext, card_row, command, hint};
+use super::{Cached, TabContext, card_row, columns, command, hint};
 use crate::session::Session;
 use crate::ui::hud::format::{int, signed};
 use crate::ui::hud::heraldry::{crest, relation_bar, state_color};
@@ -528,7 +528,7 @@ fn kingdom_details(
     });
     // Goods.
     ui.add_space(2.0);
-    ui.columns(2, |cols| {
+    columns(ui, 2, |cols| {
         let defs = ctx.input.session.defs();
         goods_list(&mut cols[0], icons, defs, "Sucht (Ihr verkauft)", &k.wanted);
         goods_list(&mut cols[1], icons, defs, "Bietet an (Ihr kauft)", &k.offered);

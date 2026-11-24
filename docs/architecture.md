@@ -206,15 +206,16 @@ bleibt alles stumm.
 | `ids` | generationelle Arena und typisierte IDs |
 | `time` | Kalender (Tick → Minute/Stunde/Tag/Jahreszeit/Jahr) |
 | `defs` | Datendefinitionen + Loader + Validierung |
-| `command`, `event` | Eingabe-Kommandos, Ausgabe-Ereignisse |
+| `command`, `event` | Eingabe-Kommandos, Ausgabe-Ereignisse; Meldungen (`Notification`) mit maschinenlesbarer Art `NotificationKind` und betroffenem Gebäude (`building`) zum Gruppieren, Filtern und Verlinken |
+| `notices` | Episoden gemeldeter Wartezustände (`Spells`: einmal melden, wenn der Zustand beginnt, wieder erst nach `notices.waiting_resolved_hours` ohne ihn; Daten in `rules.ron` → `notices`) |
 | `state` | `GameState` (gesamter Simulationszustand) + Tick-Pipeline |
-| `buildings`, `roads` | Platzierung, Validierung, Bau, Abriss, Ausbau aller Gebäude mit `upgrade` in den Daten (`upgrade_target`, `upgrade_blockers`; Bauarbeiter halten die Plätze: `Building::trade_staff`), Straßennetz |
+| `buildings`, `roads` | Platzierung, Validierung (u. a. kein Bewohner wird eingeschlossen: `PlacementError::TrapsCitizen`), Bau, Abriss, Ausbau aller Gebäude mit `upgrade` in den Daten (`upgrade_target`, `upgrade_blockers`; Bauarbeiter halten die Plätze: `Building::trade_staff`), Zugang (`access`: `access_points` – Eingang, bei `Access::AnySide` (Mauer, Tor, Türme) jedes begehbare Nachbarfeld; `access_components` für Logistik und Bauarbeiter), Straßennetz |
 | `economy`, `production` | Lager, Rezepte, Warteschlangen, Preise, Finanzen, Handel; `production::output` (gemessener Ertrag: Arbeitsgänge und Waren je Tag, heute und die letzten 24 Tage, `ProductionState::output_log`) |
 | `nature` | Baumwachstum (Jahreszeit-Faktor), Baumstümpfe, Fischbestand |
-| `population` | Bewohner (Arena, `CitizenId`), Haushalte, Wohnungen; Bedürfnisse, Zufriedenheit, Gesundheit, Haushaltsversorgung (Markt/Lager), Demografie, Hausstufen (Ab-/Aufstieg); `movement` (Positionen in 1/256 Tile, Wege, Pfadanfragen mit Budget, Reisende), `routine` (Tagesablauf als Ziele – Festtage, Kranke, Schutz vor Feinden –, Anwesenheit, Tätigkeit), `spatial` (räumlicher Index je Chunk, `CitizenView`), `wealth` (Geldbörse der Haushalte: Einkommen, Steuer, Marktgebühr, Käufe zum Marktpreis, arm/wohlhabend), `friends` (Freundschaften am selben Ort, stündlich per Hash) |
+| `population` | Bewohner (Arena, `CitizenId`), Haushalte, Wohnungen; Bedürfnisse, Zufriedenheit, Gesundheit, Haushaltsversorgung (Markt/Lager; „Heizen geht vor“: Heizvorrat, Brennstoff aus Baumaterial in der Not, Warnung „Brennholz wird knapp“, `report::fuel_forecast`), Demografie, Hausstufen (Ab-/Aufstieg); `movement` (Positionen in 1/256 Tile, Wege – bei mehreren Zugangsfeldern oder Wegen aus einer Grundfläche (Tür, überbauter Standort) das erste erreichbare Paar aus Start und Ziel –, Pfadanfragen mit Budget, Reisende), `routine` (Tagesablauf als Ziele – Festtage, Kranke, Schutz vor Feinden –, Anwesenheit, Tätigkeit), `spatial` (räumlicher Index je Chunk, `CitizenView`), `wealth` (Geldbörse der Haushalte: Einkommen, Steuer, Marktgebühr, Käufe zum Marktpreis, arm/wohlhabend), `friends` (Freundschaften am selben Ort, stündlich per Hash) |
 | `workforce` | Arbeitszuteilung der Bewohner auf Arbeitsplätze und Baustellen (Grundbesetzung: Träger, Marktarbeiter, ein Bauarbeiter für die erste Baustelle; Suche nach den Nächstwohnenden über Gruppen je Haus, Ergebnis gleich der früheren Einzelsuche – Referenz `workforce_reference.rs` nur in Tests), Wohnbelegung, Zähler |
 | `navigation` | Wegkosten-Raster (Terrain, Straßen/Brücken, Höhen, Gebäude, Mauern/Tore, Bauwerke der KI-Orte; abgeleitet, inkrementell über die Änderungs-Rechtecke von Straßen, Gebäuden und der Land-Karte; jede Aktualisierung meldet die Rechtecke geänderter Tiles, billiger/teurer), Zusammenhangskomponenten, A* (ganzzahlig, vollständige Gleichstandsregel, in Scheiben über mehrere Ticks fortsetzbar), Weggedächtnis `memory` (gespeichert: Wege je ungeordnetem Paar, gepackt 2 Bit je Schritt, mit Kosten und Umriss, am längsten unbenutzte zuerst vergessen, gezielt invalidiert, beim Laden gegen den Raster-Fingerabdruck und Schritt für Schritt geprüft); `prepare` (Raster und Komponenten aktuell, bevor Schritte Komponenten vergleichen) |
-| `logistics` | Transportaufträge (`planner`: Abholung, Rücktransport, Belieferung, Baumaterial; Rückstau höchstens 4 je Träger), laufende Träger (`carriers`: Abholen → Tragen → Abladen mit Ladezeit, Zusammenlegen gleicher Aufträge, Rückfracht, Umleiten zu einem Lager mit Platz, Übergabe beim Tod/Abwandern), Heimtragen der Sammler (`Haul`), Fahrtstatistik; Waren unterwegs liegen beim Bewohner (`CarryTrip`) |
+| `logistics` | Transportaufträge (`planner`: Abholung, Rücktransport, Belieferung, Baumaterial; Rückstau höchstens 4 je Träger; Kunden über dasselbe Straßennetz oder – Mauerteile und Türme – über einen Fußweg zu einem Nachbarfeld verbunden (`Link`); fehlt Baumaterial in jedem Lager in Reichweite einer Baustelle, „Nachschub“ (`TransportKind::Restock`) aus Lagern desselben Straßennetzes in das Lager, das sie beliefert; in der Heizzeit Brennstoff für Werkstätten nur über den Heizvorrat hinaus), laufende Träger (`carriers`: Abholen → Tragen → Abladen mit Ladezeit, Zusammenlegen gleicher Aufträge, Rückfracht, Umleiten zu einem Lager mit Platz, Übergabe beim Tod/Abwandern), Heimtragen der Sammler (`Haul`), Fahrtstatistik; Waren unterwegs liegen beim Bewohner (`CarryTrip`) |
 | `agriculture` | Farmen mit exklusiv beanspruchten Feld- und Weide-Tiles (`Agriculture`: Farmen je Gebäude, Belegung Tile → Farm), Feldfrüchte mit Wachstum, Stufen, Boden, Feuchte, Zustand; Aussaat und Ernte als Farmarbeit, Frost, Scheune; Darstellung je Tile (`field_at`, `fields_in`, Feld-Dirty-Chunks) |
 | `weather` | Tageswetter (eigener `ChaCha8Rng`, Fortbestehen, Stärke), Tagestemperatur in °C (Jahreszeit, Wetter, Hash des Tages, Klima des Startgebiets; Heizen und Frost), Wirkungen (Wachstum, Arbeit im Freien, Heizbedarf, Krankheit, Feldschaden, Dürre-Durst), Jahreszeit-Faktoren der Sammler, Schneedecke/Bodennässe, Trockenperiode (`dry_days`: Tage in Folge ohne Regen, Sturm oder Schnee), Meldungen |
 | `research` | Erforschte Technologien und ihre Wirkungen (Abfragen für alle Systeme), Forschungsliste mit Fortschritt (ganzzahlig, Milli-Punkte je Stunde je Tick), Bezahlung beim Beginn, Abschluss mit Wirkung, Forschungsleistung (`research_rate`: Hauptquartier + Schulen nach anwesender Besetzung), Tagesstatistik, deutsche Wirkungstexte |
@@ -361,7 +362,12 @@ und Tag des letzten Festes, Erinnerung „Festgäste“, Zeitpunkt des letzten K
 (Drosselung des Posteingangs; ein Zeitpunkt in der Zukunft wird beim Laden abgelehnt);
 Format 17: Trockenperiode des Wetters (`WeatherState::dry_days`, Tage ohne Regen, Sturm oder
 Schnee; muss zum heutigen Wetter passen), Ereignis eines erzwungenen Wetters
-(`ForcedWeather::event`, `None` = Entwicklerbefehl; muss ein bekanntes Ereignis sein). Ereignistage (letztes Fest, letztes Auftreten je
+(`ForcedWeather::event`, `None` = Entwicklerbefehl; muss ein bekanntes Ereignis sein);
+Format 18: Episoden gemeldeter Wartezustände (`notices::Spells`: zuletzt gesehen je Schlüssel –
+Lager ohne Träger, „Kein Weg“ je Gebäude, Hunger/Kälte/Obdachlose/Brennholz je Thema, schrumpfende
+Staatskasse; Produktion: gemeldeter Status `reported` und `resolved_since` statt der alten
+Warnzeit), Thema „Brennholz knapp“ der Bevölkerungsmeldungen, Transportart „Nachschub“
+(`TransportKind::Restock`); Zeitpunkte in der Zukunft werden beim Laden abgelehnt. Ereignistage (letztes Fest, letztes Auftreten je
 Ereignis, letztes Ereignis), Beginn eines offenen Ereignisses und Entscheidungen der Chronik
 dürfen nicht in der Zukunft liegen, Modifikatoren und Steuerdeckel höchstens 65 535 Tage
 dauern – sonst wird der Spielstand abgelehnt. Wegkosten-Raster, Komponenten, räumlicher Index,
@@ -711,9 +717,13 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
     Einstellungen, Rückfrage beim Verlassen mit ungespeichertem Fortschritt inkl. Fenster-X),
     Laden im Hintergrund (Spiel angehalten, Meldung), Autospeichern (`AutosaveInterval`, nur bei
     ungespeicherten Ticks, nie während ein Speichern läuft), automatisches Anhalten
-    (`pause_reason`: Ereignis mit Entscheidung, Gefahrenmeldung; eine Pause für ein Ereignis merkt
-    sich das Tempo davor – `resume_after_decision` setzt es nach der Entscheidung fort, solange
-    der Spieler das Tempo nicht selbst geändert hat), Einstellungen je Frame
+    (`scenes::auto_pause`: `PauseReason::of` – Ereignis mit Entscheidung, Anfrage eines Reichs,
+    Gefahrenmeldung – und `pause_reason` für den Hinweistext; `AutoPause` merkt sich das Tempo
+    davor und die offenen Gründe. Die Entscheidung des Ereignisses, „Später“/×/Esc auf der
+    Anfragekarte oder eine Antwort, nach der die Karte zugeht, geben ihren Grund frei; erst ohne
+    offenen Grund läuft das alte Tempo weiter. Eine Gefahr hält die Pause, bis der Spieler das
+    Tempo selbst ändert; jede Tempowahl des Spielers, ein Laden oder die Niederlage beenden die
+    automatische Pause), Einstellungen je Frame
     (Randscrollen, Kamerageschwindigkeit, Partikeldichte, Tag/Nacht, Meldungsfilter), Spielzeit.
     Beim Verlassen: laufende Speicherungen abwarten, statische Batches freigeben, Klänge stoppen.
 * `settings`: `Settings` in `settings.ron` (Spiel: Autospeichern, automatisch anhalten,
@@ -891,7 +901,8 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
   neuer Position/Drehung und alle 10 Ticks, `plan_access_road` (Zufahrts-Vorschlag) bei neuer
   Position, wenn sich das Urteil der Prüfung ändert, sonst alle 100 Ticks, `plan_road` nur bei
   neuem Endfeld. Mit Zufahrt sendet der Klick `PlaceBuildingWithAccess`: die Simulation plant
-  die Zufahrt im selben Tick neu und baut sie nur, wenn das Gebäude angenommen wurde.
+  die Zufahrt im selben Tick neu und baut sie nur, wenn das Gebäude angenommen wurde. Mauer,
+  Tor und Türme der Mauerlinie (`BuildingDef::needs_road()` falsch) bekommen keine Zufahrt.
   Ungültige Klicks gehen trotzdem als Kommando an die Simulation (maßgebliche Ablehnung →
   Hinweis); das Werkzeug bleibt dann aktiv. Erstattungsvorschau, Stilllegen und Versetzen
   fragen die Simulation (`buildings::demolish_refund`, `pause_allowed`, `move_allowed`); nur
@@ -937,12 +948,13 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
       öffnet dann den Dialog, sonst das Fenster mit offener Entscheidung, Wirkungen aus
       `events_report` – Modifikatoren mit Restdauer, Summen, Steuerdeckel – und Verlauf der
       letzten Ereignisse mit Wahl und Ergebnis), Meldungen (alle Benachrichtigungen der Sitzung,
-      Filter „nur Warnungen und Gefahren“, Zähler ungelesener), Übersicht (`overview`). Ein Fenster
+      Filter „nur Warnungen und Gefahren“ und nach Art, Zähler ungelesener), Übersicht (`overview`). Ein Fenster
       zur Zeit, 330 Punkte breit, zwischengespeichert wie die Reiter.
     * `overview`: Bevölkerung mit Veränderung heute, Zufriedenheit mit größter Last, Festtag mit
       Restdauer (Modifikator `Festival` aus `events_report`), Schatz und
       Tagesbilanz, Nahrung mit Reichweite (`food_forecast`), Forschung, Gefahren (offene
-      Entscheidung, Bankrott oder knapper Schatz, Nahrung unter drei Tagen, Ruinen, negative
+      Entscheidung, Bankrott oder knapper Schatz, Nahrung unter drei Tagen, knappes Brennholz in
+      der Heizzeit aus `fuel_forecast` → Reiter Landwirtschaft, Ruinen, negative
       Ereignis-Modifikatoren, Steuerdeckel, Obdachlose, Unzufriedene, stillstehende Forschung;
       nach Schwere sortiert) und die letzten vier Ereignisse. Jede Zeile führt zum passenden
       Reiter, Gebäude oder Dialog. Ein Rang erscheint erst, wenn die Simulation Ränge kennt; der
@@ -972,7 +984,9 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
       Öffnen drei Frames nach oben geholt. Zeiger und Mausrad über dem Fenster wirken nie auf
       die Karte (egui-Eingabefilter der Engine). Jeder Reiter speichert seine Daten in
       `Cached<T>` und berechnet sie höchstens alle 0,25 s neu, sobald die Simulation
-      weiterlief. Zeilen (`table`: feste Spalten, Zebra, Hover, ganze Zeile klickbar,
+      weiterlief. Zweispaltige Abschnitte laufen über `management::columns` (wie
+      `Ui::columns`, aber linksbündig ohne Blocksatz: Hinweise und Leerzustände bleiben
+      flatternd, Knöpfe so breit wie ihr Text). Zeilen (`table`: feste Spalten, Zebra, Hover, ganze Zeile klickbar,
       nicht markierbare Texte) wählen Gebäude aus (`HudAction::SelectBuilding` → Auswahl +
       Kamera). Die Fußzeile zeigt den Stand und, im Pausenzustand, wartende Kommandos.
       * `economy` (Wirtschaft): Kennzahlen (Schatz, Tagesbilanz, Warenwert, Preisindex = Mittel
@@ -1038,7 +1052,10 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
         mit „Häuser heizen“ und „Frost“, Jahreszeit und Resttage, Schneedecke, Bodennässe, Wind,
         Wirkungen, erzwungenes Wetter mit seinem Grund aus `forced_text`), `food_forecast` (Vorrat
         bis Winterende, `days_of_stock` als Option; Balken „Vorrat 4.594 · Bedarf im Winter 1.728“,
-        bei Mangel „… · 528 fehlen“, `winter_bar_text`), `agriculture_summary` (Feldfrüchte mit
+        bei Mangel „… · 528 fehlen“, `winter_bar_text`), `fuel_forecast` („Brennstoff zum Heizen“:
+        Zusammenfassung rot bei `short`, grün in der Heizzeit, Vorrat und Tagesbedarf als Heizwert,
+        Heizvorrat der Häuser in der Heizzeit, Regel „Heizen geht vor“ mit
+        `population.fuel_reserve_days`), `agriculture_summary` (Feldfrüchte mit
         Aussaat- und Wachstumsdaten aus `CropDef`; „Zustand der Felder“ aus `average_condition`,
         gefärbt und erklärt nach den Schwellen der Ernte-Ereignisse in den Ereignisdaten,
         `HarvestThresholds`), Farmen aus `farm_report`.
@@ -1090,7 +1107,9 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
       der Frucht, Fruchtbarkeit gegenüber dem natürlichen Wert, Erschöpfung, Feuchte, Zustand,
       Scheune, laufende und letzte Ernte, laufende Arbeit, aufklappbare Einzelliste der Felder
       mit Stufenbild.
-    * `info_panel`: Info-Fenster rechts neben der rechten Leiste (Gebäude oder Feld): Status mit Grund (finden die
+    * `info_panel`: Info-Fenster rechts neben der rechten Leiste (Gebäude oder Feld): Status mit Grund („kein
+      Straßenanschluss“ nur bei Gebäuden, die eine Straße brauchen – nicht bei Mauer, Tor und
+      Türmen, `BuildingDef::needs_road`; finden die
       Arbeiter keinen Weg, „Kein Weg zur Arbeit“ rot; „Arbeiter auf dem Weg“, „Mittagspause“,
       „Feierabend“ und „Kein freier Platz zum Pflanzen“ neutral), Bau/Ausbau mit Material und Bauarbeitern (zugeteilt und an der
       Baustelle), Arbeiter und Priorität, Produktion (Arbeitsgang, Produktivität mit Faktoren –
@@ -1114,20 +1133,31 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
       „Ausbau: Großes Sägewerk“), Gebiet/Dienste; Stilllegen, Versetzen, Abreißen. Die Reichsverwaltung (Produktion) führt
       Betriebe ohne Weg für die Arbeiter als Problem.
     * `feed`: Meldungskarten rechts (links vom Info- bzw. Seitenfenster; ausgeblendet, solange die
-      Liste „Meldungen“ offen ist) aus `SimEvent::Notification` (neueste oben; eine wiederholte
-      Meldung rückt mit „×N“ nach oben; Farbe je Schwere, Spielzeit, Klick → Kamera, Ausblenden
-      nach ≈ 24 s; so viele Karten, wie nach ihrer gemessenen Höhe passen), die Liste aller
-      Meldungen des Spiels (200, unabhängig vom Meldungsfilter, mit dem Spielstand gespeichert)
-      mit Zähler der seit dem letzten Öffnen gezeigten, und Hinweise oben (`CommandRejected`,
-      Speichern/Laden). Beruhigung: dieselbe Meldung (Text und Ort) je Kalendertag (Mitternacht bis
-      Mitternacht, `GameClock::total_days`) höchstens einmal (Gefahren immer); die Schwere kommt unverändert aus der Simulation (dichter Wald am
-      Försterhaus ist dort schon eine Information).
+      Liste „Meldungen“ offen ist) aus `SimEvent::Notification` (neueste oben; Überschrift ist die
+      Art `NotificationKind::display_name`, bei „Allgemein“ die Schwere; Farbe je Schwere,
+      Spielzeit, Ausblenden nach ≈ 24 s; so viele Karten, wie nach ihrer gemessenen Höhe passen),
+      die Liste aller Meldungen des Spiels (200, unabhängig vom Meldungsfilter, mit Art und
+      Gebäude im Spielstand gespeichert) mit Zähler der seit dem letzten Öffnen gezeigten und
+      Auswahl nach Art (`kinds_in_history`, „Alle Arten“), und Hinweise oben (`CommandRejected`,
+      Speichern/Laden). Gruppieren, Beruhigen und Verlinken gehen nach Art und Gebäude der
+      Simulation (`Notification::kind`, `Notification::building`), nie nach dem Text: Ein
+      **Zustand** (Wartezustand nach `NotificationKind::is_waiting_state` oder verlorene Waren
+      wegen vollem Lager) gehört zu seinem Gegenstand – Art und Gebäude, sonst Kartenfeld, sonst
+      das ganze Reich –, eine neue Meldung dazu ersetzt Karte und Listeneintrag („×N“, neuester
+      Text) und aktualisiert sie am selben Kalendertag (Mitternacht bis Mitternacht,
+      `GameClock::total_days`) still, ohne erneut aufzuspringen (Gefahren immer). Alles andere
+      ist eine **Nachricht**; nur dieselbe Nachricht noch einmal (gleiche Art und gleicher
+      Wortlaut, etwa „Fertiggestellt: Stadtmauer“ je Mauerstück) zählt auf einer Karte. Klick →
+      das Gebäude (Auswahl und Kamera, `HudAction::SelectBuilding`), solange es steht, sonst die
+      Kamera zum Ort. Die Schwere kommt unverändert aus der Simulation.
     * `minimap`: egui-Textur mit 2 × 2 Pixeln je Tile, als Raute gezeichnet; aktualisiert je Chunk
       (Dirty-Chunks der Kartenansicht, Straßenereignisse, Vergleich der Gebäuderechtecke nach
       Bauereignissen), Neuaufbau bei Gebietsänderung und bei neuem Jahreszeitenbild
       (`SeasonLook`: Schneedecke des Wetters in fünf Stufen, Herbstlaub); Sichtrahmen, Klick/Ziehen.
     * `tooltip`: Tooltip an der Karte (Feldinfo nach kurzer Ruhezeit, Platzierungsurteil mit
-      Gründen und Kosten, Straßenlänge und -kosten, Abriss-Erstattung); `dialogs`: Pausenmenü und
+      Gründen und Kosten – „kein Lager erreicht diesen Bauplatz“ zuerst –, Straßenlänge und
+      -kosten, Abriss-Erstattung); beim Bauen und Versetzen steht er neben dem Umriss der
+      Grundfläche (`beside_footprint`: rechts davon, ohne Platz links), nie über dem Geist; `dialogs`: Pausenmenü und
       Abriss-Bestätigung (egui-Modal; die Esc-Taste, die das Menü öffnet, schließt es nicht);
       nach `GameState::game_over()` öffnet die Weltszene das Pausenmenü einmal als „Niederlage“
       mit `ranks::defeat_text` (`pause_texts`).
@@ -1188,7 +1218,10 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
   Werkzeugschritt bzw. letzter Wegpunkt, Folgen, Rangfeier, Ereignis-Dialog, Anfrage-Dialog,
   Seitenfenster bzw. Bauleiste, Reichsverwaltung,
   Bürgerfenster, Auswahl, sonst Pausenmenü) → Hover
-  (Entwickler-Override `KINGDOMS_CURSOR`) → Werkzeug → Klänge; `ui` → HUD-Aktionen; `render` →
+  (Entwickler-Override `KINGDOMS_CURSOR`) → Werkzeug → Klänge; Simulationsticks des Frames;
+  `ui` → zuerst die Folgekamera (verfolgter Bürger bzw. `KINGDOMS_FOCUS=feind|karawane`, an der
+  interpolierten Stelle des Frames), dann HUD und kartenverankerte Beschriftungen mit derselben
+  Kamera (`HudInput::view`, `HudInput::alpha` für die Läufer) → HUD-Aktionen; `render` →
   Kartenabgleich, Minikarte, Zeichnen, Werkzeug-Vorschau.
 * Speicherorte: `settings.ron`, `engine.ron`, `saves/`, `logs/`, `screenshots/` im
   Benutzerverzeichnis (`GamePaths::user`).
@@ -1268,6 +1301,18 @@ Das Binary stellt nur dar und sendet Kommandos; Spielregeln liegen ausschließli
   * Entwicklerhilfen `session::dev_army` (`KINGDOMS_DEV_ARMY`), `session::dev_trade`
     (`KINGDOMS_DEV_TRADE`), `KINGDOMS_DEV_THREAT` (Krieg + `DebugSpawnThreat`) und
     `KINGDOMS_FOCUS=feind|karawane` (Kamera folgt) – alles über Kommandos.
+  * Entwicklerhilfe `session::dev_walls` (`KINGDOMS_DEV_WALLS=<radius>`): geschlossener
+    Mauerring samt der vier Ecken um das Rathaus ohne Straßen (Mauer und Tor werden von jeder
+    Seite betreten), danach Tore auf Straßenkreuzungen und in der Mitte jeder Seite (abgelehnte
+    Mitte: nächstes stehendes Mauerstück der Seite, nie eine Ecke).
+  * Entwicklerhilfe `session::dev_case` (`KINGDOMS_DEV_CASE=gasthaus|einarbeitung|lagerferne`):
+    stellt nach den Warp-Ticks seltene Zustände her – Gasthaus mit Bier und Gästen am Abend,
+    Sägewerke mit neuen, noch nicht eingearbeiteten Fachkräften, Wachturm am Rand des Gebiets
+    mit einem Bauplatz außerhalb jeder Lager-Reichweite – nur über Kommandos und
+    Entwicklergaben; `Session::launch` lässt das Spiel laufen, bis der Zustand erreicht ist
+    (höchstens 4 Tage), und `Session::dev_view` nennt Kamera, Auswahl, Werkzeug und
+    Zeiger-Tile, die die Weltszene übernimmt, soweit `KINGDOMS_FOCUS`/`SELECT`/`TOOL`/`CURSOR`
+    nichts anderes sagen.
 
 ## 5. Performance-Strategie
 Chunk-Batches + Culling, instanziertes Rendering, Texturatlanten, gestaffelte Bewohner-Updates

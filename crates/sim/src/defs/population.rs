@@ -80,6 +80,12 @@ pub struct PopulationRules {
     pub pantry_days: f32,
     /// Heating value a resident burns per winter day.
     pub fuel_per_resident_day: f32,
+    /// Heating comes first (docs/game_design.md §6.1): on days that need heating workshops get
+    /// fuel (wood, coal) only beyond this many days of the households' heating demand.
+    pub fuel_reserve_days: f32,
+    /// Fuel lasting fewer days than this at today's heating demand is reported once per spell
+    /// („Brennholz wird knapp“), on cold days and on the last day of autumn.
+    pub fuel_warning_days: f32,
     /// Speed at which needs follow their supply level, in points per game hour.
     pub need_change_per_hour: f32,
     /// Hunger lost per game hour without food.
@@ -320,6 +326,8 @@ impl PopulationRules {
         }
         for (name, v) in [
             ("fuel_per_resident_day", self.fuel_per_resident_day),
+            ("fuel_reserve_days", self.fuel_reserve_days),
+            ("fuel_warning_days", self.fuel_warning_days),
             ("tax_happiness_per_percent", self.tax_happiness_per_percent),
             ("starvation_damage_per_hour", self.starvation_damage_per_hour),
             ("freezing_damage_per_hour", self.freezing_damage_per_hour),

@@ -19,7 +19,7 @@ use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::defs::{BuildingDef, Defs, EventDefId, Gathering, GameRules, Weather, WeatherEffect};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::{GameClock, Season};
 use crate::world::DepositKind;
@@ -530,7 +530,7 @@ fn new_day(state: &mut GameState, rules: &GameRules, clock: GameClock, events: &
         }
     }
     for (severity, text) in notes {
-        events.push(SimEvent::Notification(Notification::new(severity, text)));
+        events.push(SimEvent::Notification(Notification::new(severity, text).with_kind(NotificationKind::Weather)));
     }
 }
 

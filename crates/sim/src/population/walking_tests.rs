@@ -7,7 +7,7 @@ use super::movement::{self, SUBTILE, SubPos, TripPhase, WalkerId};
 use super::*;
 use crate::buildings::BuildingId;
 use crate::event::SimEvent;
-use crate::grid::{Axis, TileRect};
+use crate::grid::{Axis, Direction, TileRect};
 use crate::production::ProductionStatus;
 use crate::roads::RoadTile;
 use crate::state::GameState;
@@ -850,4 +850,46 @@ fn carrier_performance() {
     );
     state.validate_entities(d).unwrap();
     assert!(peak_busy >= 150, "carriers worked: {peak_busy}");
+}
+
+#[test]
+fn a_walker_on_a_door_leaves_on_the_side_its_goal_is_reachable_from() {
+    let d = defs();
+    let mut state = flat_state(48);
+    set_adults(&mut state, 1);
+    quiet_depot(&mut state);
+    let house = spawn(&mut state, "house_wood", 10, 20);
+    let farm = spawn(&mut state, "chicken_farm", 30, 20);
+    let b = state.building(house).unwrap();
+    let (rect, door, entrance) = (b.rect(), b.door(), b.entrance());
+    // The door of the 2×2 house lies on a corner: one more neighbour outside the footprint.
+    // That side becomes a pocket of one tile (water all around the house but at the
+    // entrance), and it comes first in the N, E, S, W order the way out is searched in.
+    let side = Direction::ALL.into_iter().map(|d| door + d.offset()).find(|p| !rect.contains(*p) && *p != entrance).unwrap();
+    let order = |p: IVec2| Direction::ALL.iter().position(|d| door + d.offset() == p).unwrap();
+    assert!(order(side) < order(entrance), "the pocket is tried first");
+    for p in rect.expanded(2).tiles() {
+        let ring = !rect.contains(p) && TileRect::tile(p).distance_to_rect(&rect) <= 1;
+        let around_side = (p - side).abs().max_element() == 1 && !rect.contains(p);
+        if p != entrance && ((ring && p != side) || around_side) {
+            state.world.tile_mut(p).terrain = Terrain::ShallowWater;
+        }
+    }
+    crate::navigation::rebuild(&mut state, d);
+    assert!(state.navigation.is_walkable(side) && !state.navigation.reachable(side, entrance));
+    // A walker that stepped out of the door and stopped there (its trip was replanned).
+    let walker = state.population.citizens().next().map(|(id, _)| id).unwrap();
+    movement::place(&mut state, WalkerId::Citizen(walker), Motion::standing(door));
+    movement::set_destination(&mut state, WalkerId::Citizen(walker), Some(Destination::Building { building: farm, purpose: Purpose::Work }));
+    for _ in 0..TICKS_PER_DAY {
+        movement::run_movement(&mut state, d, &mut Vec::new());
+        let m = motion(&state, walker);
+        assert!(!matches!(m.phase(), TripPhase::NoPath { .. }), "found the way out through the entrance");
+        assert_ne!(m.pos().tile(), side, "did not step into the pocket");
+        if m.inside() == Some(farm) {
+            break;
+        }
+    }
+    assert_eq!(motion(&state, walker).inside(), Some(farm));
+    state.validate_entities(d).unwrap();
 }

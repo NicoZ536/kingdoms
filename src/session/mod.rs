@@ -7,6 +7,7 @@
 //! [`Session::queue_command`] since the previous tick is applied at the start of the next one.
 
 pub(crate) mod dev_army;
+mod dev_case;
 pub mod dev_crowd;
 pub mod dev_showcase;
 mod dev_settlement;
@@ -28,6 +29,8 @@ use kingdoms_sim::state::{GameSettings, GameState};
 
 pub use dev_settlement::DevPlan;
 use dev_army::DevArmy;
+pub use dev_case::{DevCase, DevView};
+use dev_case::DevCasePlan;
 use dev_walls::DevWalls;
 use dev_trade::DevTrade;
 use dev_settlement::DevSettlement;
@@ -87,6 +90,9 @@ pub struct Session {
     dev_army: Option<DevArmy>,
     dev_walls: Option<DevWalls>,
     dev_trade: Option<DevTrade>,
+    dev_case: Option<DevCasePlan>,
+    /// What the screen shows once the developer case is set up (`KINGDOMS_DEV_CASE`).
+    dev_view: Option<DevView>,
     /// Real seconds played in this game (presentation statistics for the save list).
     play_seconds: f64,
     /// Simulation tick of the last save or load (or the start); progress after it is unsaved.
@@ -120,6 +126,8 @@ impl Session {
             dev_army: None,
             dev_walls: None,
             dev_trade: None,
+            dev_case: None,
+            dev_view: None,
             play_seconds: 0.0,
             saved_tick: 0,
             on_disk: false,
@@ -142,6 +150,8 @@ impl Session {
             dev_army: None,
             dev_walls: None,
             dev_trade: None,
+            dev_case: None,
+            dev_view: None,
             play_seconds: play_seconds as f64,
             saved_tick,
             on_disk: true,
@@ -251,6 +261,9 @@ impl Session {
         if options.warp_ticks > 0 {
             session.warp(options.warp_ticks);
         }
+        if let Some(case) = options.dev_case {
+            session.run_dev_case(case);
+        }
         if let Some(w) = options.dev_weather {
             session.queue_command(Command::DebugSetWeather { weather: w.weather, intensity: w.intensity, days: w.days });
             session.tick();
@@ -268,6 +281,34 @@ impl Session {
         // A fresh game has nothing to lose yet.
         session.saved_tick = session.state.clock().tick;
         session
+    }
+
+    /// `KINGDOMS_DEV_CASE`: starts the case and runs the game until its state is reached (at
+    /// most [`dev_case::MAX_DAYS`] days); the view it names is kept for the world scene.
+    fn run_dev_case(&mut self, case: DevCase) {
+        let (plan, commands) = DevCasePlan::start(&self.defs, case);
+        for command in commands {
+            self.queue_command(command);
+        }
+        self.dev_case = Some(plan);
+        let start = self.state.clock().tick;
+        while self.state.clock().tick - start < dev_case::MAX_TICKS {
+            self.tick();
+            if let Some(view) = self.dev_case.as_ref().and_then(|p| p.reached(&self.state, &self.defs)) {
+                log::info!("KINGDOMS_DEV_CASE: '{}' reached at {} (camera {}, cursor {:?})", case.key(), self.state.clock(), view.focus, view.cursor);
+                self.dev_view = Some(view);
+                break;
+            }
+        }
+        if self.dev_view.is_none() {
+            log::warn!("KINGDOMS_DEV_CASE: '{}' not reached within {} days (now {})", case.key(), dev_case::MAX_DAYS, self.state.clock());
+        }
+        self.dev_case = None;
+    }
+
+    /// What the screen shows once the developer case is set up (`KINGDOMS_DEV_CASE`).
+    pub fn dev_view(&self) -> Option<&DevView> {
+        self.dev_view.as_ref()
     }
 
     /// `KINGDOMS_DEV_SHOWCASE`: where every building stands (camera targets for
@@ -427,6 +468,9 @@ impl Session {
         }
         if let Some(trade) = self.dev_trade.as_mut() {
             self.queued.extend(trade.after_tick(&self.state, &self.defs));
+        }
+        if let Some(case) = self.dev_case.as_mut() {
+            self.queued.extend(case.after_tick(&self.state, &self.defs));
         }
         let tick = self.state.clock().tick;
         for event in events {

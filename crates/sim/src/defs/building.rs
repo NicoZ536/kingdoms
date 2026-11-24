@@ -81,6 +81,21 @@ pub enum BuildingRole {
     Gate,
 }
 
+/// How walkers get into a building and how its construction site is reached
+/// (docs/game_design.md §5.5, §5.6, §7).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Access {
+    /// Through the door from the entrance tile in front of it; goods only come and go while a
+    /// road touches the entrance (the same road network as the storage).
+    #[default]
+    Entrance,
+    /// From any walkable tile next to the (1×1) footprint, the entrance first: wall segments,
+    /// gates and towers on a wall line, whose entrance may face another piece of wall. No road
+    /// is needed – carriers deliver from every storage whose carrier radius covers the site and
+    /// from whose entrance a walker reaches such a tile.
+    AnySide,
+}
+
 /// How a building gathers raw resources from its surroundings. Radii are measured in tiles
 /// (Chebyshev distance) from the building's footprint.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -342,6 +357,8 @@ pub struct BuildingDef {
     pub outdoor: bool,
     /// Special function.
     pub role: BuildingRole,
+    /// How walkers and goods get into the building.
+    pub access: Access,
     /// Production behaviour.
     pub production: Option<ProductionDef>,
     /// Housing behaviour.
@@ -377,6 +394,12 @@ pub struct BuildingDef {
 }
 
 impl BuildingDef {
+    /// True if goods reach the building only over a road at its entrance ([`Access::Entrance`]);
+    /// wall segments, gates and towers on a wall line ([`Access::AnySide`]) need no road.
+    pub fn needs_road(&self) -> bool {
+        self.access == Access::Entrance
+    }
+
     /// `n` buildings of this type in German: „1 Wachturm“, „3 Wachtürme“ (types without a
     /// plural in the data keep their name).
     pub fn count_text(&self, n: u32) -> String {
@@ -457,6 +480,8 @@ pub(crate) struct RawBuilding {
     pub outdoor: bool,
     #[serde(default)]
     pub role: BuildingRole,
+    #[serde(default)]
+    pub access: Access,
     #[serde(default)]
     pub production: Option<RawProduction>,
     #[serde(default)]
@@ -603,6 +628,13 @@ impl RawBuilding {
             if matches!(self.role, BuildingRole::WallSegment | BuildingRole::Gate) {
                 p.check(self.size == (1, 1), loc, || "wall segments and gates must be 1x1".into());
             }
+            if self.access == Access::AnySide {
+                // Entering from any side needs a single footprint tile (it is the door), and a
+                // storage stays a road-bound carrier base.
+                p.check(self.size == (1, 1) && self.storage.is_none(), loc, || {
+                    "access AnySide needs a 1x1 building without storage".into()
+                });
+            }
             if self.role == BuildingRole::Headquarters {
                 p.check(self.storage.is_some(), loc, || "headquarters must have storage".into());
             }
@@ -675,6 +707,7 @@ impl RawBuilding {
             material: self.material,
             outdoor: self.outdoor,
             role: self.role,
+            access: self.access,
             production,
             housing,
             upgrade,

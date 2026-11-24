@@ -622,7 +622,7 @@ fn side_panel(
     }
     section_header(ui, &format!("Forschungsliste ({} von {})", r.queue.len(), r.max_queue));
     if r.queue.is_empty() {
-        hint(ui, "Noch nichts eingereiht. Wähle eine Technologie im Baum und reihe sie ein (Doppelklick oder Knopf unten).");
+        hint(ui, "Noch nichts eingereiht. Wählt eine Technologie im Baum und reiht sie ein (Doppelklick oder Knopf unten).");
     }
     let last = r.queue.len().saturating_sub(1);
     for (i, q) in r.queue.iter().enumerate() {

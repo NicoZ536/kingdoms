@@ -7,7 +7,7 @@ use super::common::JobTier;
 use super::diplomacy::DiplomacyRules;
 use super::military::{MilitaryRules, RankRule, validate_ranks};
 use super::population::PopulationRules;
-use super::progression::{EventRules, FestivalRules, ResearchRules};
+use super::progression::{EventRules, FestivalRules, NoticeRules, ResearchRules};
 use super::walking::WalkingRules;
 use super::error::{Loc, Problems};
 use crate::time::Season;
@@ -143,6 +143,8 @@ pub struct GameRules {
     pub events: EventRules,
     /// Festivals the player holds for gold (docs/game_design.md §7).
     pub festival: FestivalRules,
+    /// When lasting waiting states are reported (docs/game_design.md §2 Meldungen).
+    pub notices: NoticeRules,
     /// Units one carrier moves per trip.
     pub carrier_capacity: u16,
     /// Ticks a carrier needs to load and unload at the ends of a trip.
@@ -235,6 +237,7 @@ impl GameRules {
         self.research.validate(p, &loc);
         self.events.validate(p, &loc);
         self.festival.validate(p, &loc);
+        self.notices.validate(p, &loc);
         p.check(self.carrier_capacity > 0, &loc, || "carrier_capacity must be positive".into());
         p.check(self.tools_buffer > 0, &loc, || "tools_buffer must be positive".into());
         p.check(self.price_smoothing_percent > 0 && self.price_smoothing_percent <= 100, &loc, || {

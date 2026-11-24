@@ -137,7 +137,7 @@ fn prepare(job: Job, defs: Arc<Defs>, data_dir: &std::path::Path, stage: &Atomic
         Job::NewGame(settings) => {
             let session = Session::start(defs, settings.clone());
             let options = LaunchOptions { seed: settings.seed, world_size: settings.world_size, ..LaunchOptions::default() };
-            Prepared { session, options, toast: Some("Willkommen in deinem neuen Reich!".to_owned()) }
+            Prepared { session, options, toast: Some("Willkommen in Eurem neuen Reich!".to_owned()) }
         }
         Job::Load { path, name } => {
             let bytes = std::fs::read(&path).map_err(|source| load_error(&SaveError::Io { path: path.clone(), source }))?;

@@ -35,7 +35,7 @@ use super::{BattleKind, BattleOutcome, BattleReport, Campaign, FighterKind, Orde
 use crate::defs::{Defs, UnitClass};
 use crate::diplomacy::{KingdomId, MemoryCause, PeaceTerms};
 use crate::economy::{LedgerCategory, MILLI_PER_GOLD, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::{CitizenId, Motion, WalkerId, movement, routine};
 use crate::state::GameState;
 use crate::time::{TICKS_PER_DAY, TICKS_PER_HOUR};
@@ -172,7 +172,7 @@ pub(crate) fn start(
     let what = if siege { "Belagerung von" } else { "Feldzug gegen" };
     let text = format!("{name} sammelt sich am Rand des Reiches zum {what} {}.", kingdom_name(state, kingdom));
     events.push(SimEvent::CampaignChanged { campaign: id, company });
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(entry)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Military).at(entry)));
     Ok(())
 }
 
@@ -327,7 +327,7 @@ fn set_out(state: &mut GameState, defs: &Defs, i: usize, events: &mut Vec<SimEve
         }
         events.push(SimEvent::CampaignChanged { campaign: id, company });
         events.push(SimEvent::Notification(
-            Notification::new(Severity::Warning, format!("{name} ist nicht rechtzeitig aufgebrochen; der Feldzug fällt aus.")).at(entry),
+            Notification::new(Severity::Warning, format!("{name} ist nicht rechtzeitig aufgebrochen; der Feldzug fällt aus.")).with_kind(NotificationKind::Military).at(entry),
         ));
         return;
     }
@@ -365,7 +365,7 @@ fn set_out(state: &mut GameState, defs: &Defs, i: usize, events: &mut Vec<SimEve
     }
     let entry = state.military.campaigns[i].entry;
     events.push(SimEvent::CampaignChanged { campaign: id, company });
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(entry)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Military).at(entry)));
 }
 
 /// A soldier comes back onto the map at `entry`.
@@ -441,7 +441,7 @@ fn come_home(state: &mut GameState, defs: &Defs, i: usize, events: &mut Vec<SimE
         text.push_str(&format!(" Vom Proviant {what} zurück ins Lager."));
     }
     events.push(SimEvent::CampaignChanged { campaign: camp.id, company: camp.company });
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(entry)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Military).at(entry)));
     super::orders::assign_duties(state, defs);
 }
 
@@ -781,5 +781,5 @@ fn record(
         BattleOutcome::Defeat => Severity::Danger,
         BattleOutcome::Draw => Severity::Warning,
     };
-    events.push(SimEvent::Notification(Notification::new(severity, text).at(position)));
+    events.push(SimEvent::Notification(Notification::new(severity, text).with_kind(NotificationKind::Military).at(position)));
 }

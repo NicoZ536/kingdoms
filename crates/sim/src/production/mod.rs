@@ -183,9 +183,14 @@ pub struct ProductionState {
     /// Cycles and goods of today and the last closed days (measured output, §6.3).
     pub(crate) made: OutputLog,
     pub(crate) last_productivity_permille: u32,
-    /// Tick since which the current problem status (missing input, nothing to gather) lasts.
+    /// Tick since which the current waiting status (missing input, nothing to gather, no room
+    /// to plant) lasts.
     pub(crate) problem_since: Option<u64>,
-    pub(crate) last_warning_tick: Option<u64>,
+    /// The waiting status reported in the current spell (docs/game_design.md §2 Meldungen).
+    pub(crate) reported: Option<ProductionStatus>,
+    /// Tick since which the reported waiting status no longer holds; after
+    /// `notices.waiting_resolved_hours` the spell is over and it may be reported again.
+    pub(crate) resolved_since: Option<u64>,
 }
 
 impl ProductionState {
@@ -205,7 +210,8 @@ impl ProductionState {
             made: OutputLog::default(),
             last_productivity_permille: 0,
             problem_since: None,
-            last_warning_tick: None,
+            reported: None,
+            resolved_since: None,
         }
     }
 

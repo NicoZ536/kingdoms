@@ -371,6 +371,38 @@ fn access_suggestion_follows_the_placement_verdict() {
     assert_eq!(preview.access.as_ref().map(|p| p.positions()), Some(expected.positions()));
 }
 
+/// Wall pieces and towers on a wall line are entered from any side: the build tool suggests no
+/// access road for them and places them with a plain `PlaceBuilding`.
+#[test]
+fn wall_pieces_get_no_access_road() {
+    let mut session = session();
+    let defs = session.shared_defs();
+    let stone = defs.resource_id("stone").expect("stone");
+    session.queue_command(Command::DebugUnlockAllResearch);
+    session.queue_command(Command::DebugGrant { gold: 5_000, goods: vec![kingdoms_sim::defs::ResourceAmount { resource: stone, amount: 200 }] });
+    session.tick();
+    let wall = defs.building_id("wall").expect("wall");
+    assert!(!defs.building(wall).needs_road());
+    let home = session.home_tile();
+    // A spot whose entrance is free land (a road would be suggested for other buildings).
+    let tile = (3..30)
+        .flat_map(|r| (-r..=r).flat_map(move |y| (-r..=r).map(move |x| home + IVec2::new(x, y))))
+        .find(|p| {
+            let check = check_placement(session.state(), &defs, wall, *p, Rotation::default());
+            check.ok && check.entrance_status == EntranceStatus::Free
+        })
+        .expect("a free spot for a wall piece");
+    let mut tools = ToolController::new();
+    tools.select(Tool::Build { kind: wall });
+    tools.update(&session, &hover(tile));
+    let preview = tools.placement().expect("preview");
+    assert!(preview.check.ok, "{:?}", preview.check.errors);
+    assert!(!preview.access_planned && preview.access.is_none(), "no access road for a wall piece");
+    assert!(!preview.check.warnings.iter().any(|w| matches!(w, PlacementWarning::NoRoadAccess)));
+    let out = click(&mut tools, &session, tile, None);
+    assert!(matches!(out.commands.first(), Some(Command::PlaceBuilding { kind, .. }) if *kind == wall), "{:?}", out.commands);
+}
+
 #[test]
 fn queued_orders_claim_their_tiles_until_the_next_tick() {
     use kingdoms_sim::buildings::{TileBlock, TileStatus};

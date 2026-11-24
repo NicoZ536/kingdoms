@@ -31,7 +31,7 @@ use super::market::{smooth_price, target_price_centi};
 use super::trade;
 use crate::defs::{Defs, JobTier, TechEffect};
 use crate::population::ServiceIndex;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 
 /// Days of expenses below which a shrinking treasury triggers a warning.
@@ -141,15 +141,15 @@ pub(crate) fn check_bankruptcy(state: &mut GameState, events: &mut Vec<SimEvent>
         events.push(SimEvent::BankruptcyStarted { treasury });
         events.push(SimEvent::Notification(Notification::new(
             Severity::Danger,
-            "Staatsbankrott! Die Produktion verlangsamt sich und es kann nicht mehr gebaut werden.",
-        )));
+            "Staatsbankrott! Die Produktion verlangsamt sich und es kann nicht mehr gebaut werden. Senkt die Ausgaben oder erhöht die Einnahmen.",
+        ).with_kind(NotificationKind::Treasury)));
     } else if treasury >= 0 && bankrupt {
         state.economy.set_bankrupt(false);
         events.push(SimEvent::BankruptcyEnded { treasury });
         events.push(SimEvent::Notification(Notification::new(
             Severity::Good,
             "Die Staatskasse ist wieder gedeckt. Der Bankrott ist überwunden.",
-        )));
+        ).with_kind(NotificationKind::Treasury)));
     }
 }
 
@@ -166,18 +166,17 @@ pub(crate) fn close_day(state: &mut GameState, defs: &Defs, new_day: u64, events
         expenses: closed.expenses_milli() / MILLI_PER_GOLD,
         treasury,
     });
-    if state.economy.is_bankrupt() {
-        events.push(SimEvent::Notification(Notification::new(
-            Severity::Danger,
-            format!("Die Staatskasse ist leer ({treasury} Gold). Senkt die Ausgaben oder erhöht die Einnahmen."),
-        )));
-    } else if net < 0 && treasury + LOW_TREASURY_DAYS * net < 0 {
+    // Bankruptcy is told when it begins and ends (`check_bankruptcy`); a treasury running out
+    // once per spell (docs/game_design.md §2 Meldungen) – the top bar shows it meanwhile.
+    if !state.economy.is_bankrupt() && net < 0 && treasury + LOW_TREASURY_DAYS * net < 0 {
         let days_left = (treasury / -net).max(0) as u32;
         events.push(SimEvent::TreasuryLow { treasury, days_left });
-        events.push(SimEvent::Notification(Notification::new(
-            Severity::Warning,
-            treasury_warning(treasury, days_left),
-        )));
+        let (now, gap) = (state.clock.tick, defs.rules().notices.resolved_ticks());
+        if state.economy.low_treasury_begins(now, gap) {
+            events.push(SimEvent::Notification(
+                Notification::new(Severity::Warning, treasury_warning(treasury, days_left)).with_kind(NotificationKind::Treasury),
+            ));
+        }
     }
     update_prices(state, defs);
     let stock = state.economy.stock().to_counts(defs);

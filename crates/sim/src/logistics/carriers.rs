@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 use glam::IVec2;
 
 use super::{JobStage, RETRY_TICKS, TransportJob, TransportKind, hand_over, pick_up, target_accepts, unload};
-use crate::buildings::BuildingId;
+use crate::buildings::{self, BuildingId};
 use crate::defs::{Defs, ResourceAmount};
 use crate::economy::storage;
 use crate::event::SimEvent;
@@ -131,8 +131,26 @@ fn storage_exists(state: &GameState, defs: &Defs, base: BuildingId) -> bool {
     state.buildings.get(base).is_some_and(|b| storage::is_operational_storage(defs, b))
 }
 
-fn connected(state: &GameState, a: BuildingId, b: BuildingId) -> bool {
-    roads::buildings_connected(&state.world, &state.roads, &state.buildings, a, b)
+/// True if goods can go between `a` and `b`: both entrances on the same road network, or – for
+/// a building entered from any side (wall pieces) – a walking connection from the other one's
+/// road-served entrance to one of its access tiles (docs/game_design.md §5.5, §7).
+pub(crate) fn connected(state: &mut GameState, defs: &Defs, a: BuildingId, b: BuildingId) -> bool {
+    let (open_a, open_b) = (buildings::is_open_sided(state, defs, a), buildings::is_open_sided(state, defs, b));
+    if !open_a && !open_b {
+        return roads::buildings_connected(&state.world, &state.roads, &state.buildings, a, b);
+    }
+    crate::navigation::prepare(state, defs);
+    let components = |state: &GameState, id: BuildingId, open: bool| -> Vec<u32> {
+        if open {
+            buildings::access_components(state, defs, id)
+        } else if roads::has_road_access(&state.world, &state.roads, &state.buildings, id) {
+            state.buildings.get(id).and_then(|b| state.navigation.component(b.entrance())).into_iter().collect()
+        } else {
+            Vec::new()
+        }
+    };
+    let of_b = components(state, b, open_b);
+    components(state, a, open_a).iter().any(|c| of_b.contains(c))
 }
 
 /// A fetching carrier: walk to the source, load, pick the goods up.
@@ -151,7 +169,7 @@ fn fetch(
     };
     let in_service = c.job().is_some_and(|j| j.building == job.carrier_base);
     let no_path = matches!(c.motion().phase(), TripPhase::NoPath { .. });
-    let valid = storage_exists(state, defs, job.carrier_base) && connected(state, job.source, job.target);
+    let valid = storage_exists(state, defs, job.carrier_base) && connected(state, defs, job.source, job.target);
     if !in_service || no_path || !valid {
         if in_service || !valid {
             state.logistics.remove(job.id);
@@ -373,7 +391,10 @@ fn take_return_load(state: &mut GameState, defs: &Defs, carrier: CitizenId, here
         .filter_map(|j| distance(j.source).filter(|d| *d <= RETURN_LOAD_REACH).map(|d| (d, j)))
         .min_by_key(|(d, j)| (*d, Reverse(j.priority), j.created_at, j.id))
         .map(|(_, j)| *j);
-    let Some(job) = next.filter(|j| connected(state, j.source, j.target)) else { return false };
+    let Some(job) = next else { return false };
+    if !connected(state, defs, job.source, job.target) {
+        return false;
+    }
     let now = state.clock.tick;
     merge_waiting(state, defs, job.id);
     set_stage(state, job.id, JobStage::Fetching { carrier, assigned_at: now });
@@ -459,7 +480,7 @@ fn assign(state: &mut GameState, defs: &Defs) {
     for (_, _, id) in waiting {
         let Some(job) = state.logistics.job(id).copied() else { continue };
         let Some(list) = free.get_mut(&job.carrier_base).filter(|l| !l.is_empty()) else { continue };
-        if !connected(state, job.source, job.target) {
+        if !connected(state, defs, job.source, job.target) {
             state.logistics.remove(id);
             continue;
         }

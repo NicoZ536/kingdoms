@@ -1,14 +1,15 @@
-//! Developer aid `KINGDOMS_DEV_WALLS=<radius>`: rings the headquarters with a town wall through
-//! regular commands, so sieges (strikes against walls and gates) can be checked on the map. It
-//! unlocks all technologies (`DebugUnlockAllResearch`) and grants gold, stone and planks
-//! (`DebugGrant`), lays a road ring one tile inside the wall with a road from the town to it
-//! (`BuildRoad`: construction sites need a road at their entrance) and places a wall segment on
-//! every side tile of the square ring `radius` tiles around the headquarters, entrance inwards
-//! (`PlaceBuilding`; a road crossing the ring is removed first with `RemoveRoad`), and, once the
-//! segments stand as sites, a gate on every road crossing and in the middle of each side without
-//! one. The four corner tiles stay open: both their inner neighbours are wall, so no road can
-//! reach their entrance. The builders raise the wall like any other; rejected spots (water,
-//! other buildings, outside the territory) are logged and stay open.
+//! Developer aid `KINGDOMS_DEV_WALLS=<radius>`: rings the headquarters with a closed town wall
+//! through regular commands, so sieges (strikes against walls and gates) can be checked on the
+//! map. It unlocks all technologies (`DebugUnlockAllResearch`) and grants gold, stone and planks
+//! (`DebugGrant`), places a wall segment on every tile of the square ring `radius` tiles around
+//! the headquarters – the four corners included – entrance inwards (`PlaceBuilding`; a road
+//! crossing the ring is removed first with `RemoveRoad`), and, once the segments stand as sites,
+//! a gate on every road crossing of a side and in the middle of each side without one (or on
+//! the standing piece of that side nearest to the middle, if the middle was refused). Wall
+//! pieces and gates are entered from any side and need no road (docs/game_design.md §5.5): the
+//! builders raise the ring from inside, the corners (whose entrance faces the next piece of
+//! wall) from outside through the gates. Rejected spots (water, other buildings, outside the
+//! territory) are logged and stay open.
 
 use glam::IVec2;
 use kingdoms_sim::buildings::Rotation;
@@ -17,20 +18,19 @@ use kingdoms_sim::defs::{BuildingRole, Defs, ResourceAmount};
 use kingdoms_sim::event::SimEvent;
 use kingdoms_sim::state::GameState;
 use kingdoms_sim::time::TICKS_PER_HOUR;
-use kingdoms_sim::world::Vegetation;
 
-use super::dev_settlement::{cheapest_road, headquarters_center};
+use super::dev_settlement::headquarters_center;
 
 /// Smallest and largest ring radius in tiles.
 pub const RADIUS_RANGE: std::ops::RangeInclusive<u32> = 4..=24;
 
-/// The side tiles of the square ring at Chebyshev distance `radius` around `center` (corners
-/// excluded), row by row.
+/// Every tile of the square ring at Chebyshev distance `radius` around `center`, the corners
+/// included, row by row.
 pub fn ring(center: IVec2, radius: i32) -> Vec<IVec2> {
     let mut tiles = Vec::new();
     for y in -radius..=radius {
         for x in -radius..=radius {
-            if (x.abs() == radius) != (y.abs() == radius) {
+            if x.abs() == radius || y.abs() == radius {
                 tiles.push(center + IVec2::new(x, y));
             }
         }
@@ -38,16 +38,15 @@ pub fn ring(center: IVec2, radius: i32) -> Vec<IVec2> {
     tiles
 }
 
-/// The closed road loop at Chebyshev distance `radius` around `center` as four chains (one per
-/// side, each a 4-neighbour path ending where the next begins).
-fn road_loop(center: IVec2, radius: i32) -> [Vec<IVec2>; 4] {
-    let r = radius;
-    let line = |from: IVec2, step: IVec2| -> Vec<IVec2> { (0..=2 * r).map(|i| center + from + step * i).collect() };
-    [line(IVec2::new(-r, -r), IVec2::X), line(IVec2::new(r, -r), IVec2::Y), line(IVec2::new(r, r), IVec2::NEG_X), line(IVec2::new(-r, r), IVec2::NEG_Y)]
+/// True for the four corner tiles of the ring.
+fn is_corner(center: IVec2, radius: i32, p: IVec2) -> bool {
+    let d = (p - center).abs();
+    d.x == radius && d.y == radius
 }
 
-/// Orientation of a wall piece on the ring at `p`: its entrance faces the road inside (0: south,
-/// 1: west, 2: north, 3: east).
+/// Orientation of a wall piece on the ring at `p`: its entrance faces inwards (0: south,
+/// 1: west, 2: north, 3: east). A corner counts to the north or south side, so its entrance is
+/// the next piece of the west or east side.
 fn inward(center: IVec2, radius: i32, p: IVec2) -> Rotation {
     Rotation::wrapping(match side_of(center, radius, p) {
         0 => 0,
@@ -75,6 +74,28 @@ fn side_of(center: IVec2, radius: i32, p: IVec2) -> usize {
     } else {
         3
     }
+}
+
+/// The gate tiles of the ring: every road crossing off the corners (a gate in a corner would
+/// lead into the wall), and the middle of each side without one.
+fn gate_tiles(center: IVec2, radius: i32, crossings: &[IVec2]) -> Vec<IVec2> {
+    let mut gates: Vec<IVec2> = crossings.iter().copied().filter(|p| !is_corner(center, radius, *p)).collect();
+    for (side, middle) in side_middles(center, radius).into_iter().enumerate() {
+        if !gates.iter().any(|g| side_of(center, radius, *g) == side) {
+            gates.push(middle);
+        }
+    }
+    gates
+}
+
+/// The tile of the side of `p` nearest to `p` (`p` first, then alternately along the side,
+/// corners excluded) for which `fits` holds.
+fn nearest_on_side(center: IVec2, radius: i32, p: IVec2, fits: impl Fn(IVec2) -> bool) -> Option<IVec2> {
+    let along = if matches!(side_of(center, radius, p), 0 | 2) { IVec2::X } else { IVec2::Y };
+    (0..2 * radius)
+        .flat_map(|i| [p + along * i, p - along * i])
+        .filter(|q| (*q - center).abs().max_element() == radius && !is_corner(center, radius, *q))
+        .find(|q| fits(*q))
 }
 
 /// The developer wall plan.
@@ -106,15 +127,11 @@ impl DevWalls {
     /// Commands after a tick: the ring of walls, then the gates.
     pub fn after_tick(&mut self, state: &GameState, defs: &Defs, events: &[SimEvent]) -> Vec<Command> {
         for e in events {
-            match e {
-                SimEvent::CommandRejected { command: Command::PlaceBuilding { origin, .. }, reason } if self.on_ring(state, defs, *origin) => {
-                    self.rejected += 1;
-                    log::info!("KINGDOMS_DEV_WALLS: no wall at {origin}: {reason} ({} so far)", self.rejected);
-                }
-                SimEvent::CommandRejected { command: Command::BuildRoad { tiles, .. }, reason } => {
-                    log::info!("KINGDOMS_DEV_WALLS: no road from {:?}: {reason}", tiles.first());
-                }
-                _ => {}
+            if let SimEvent::CommandRejected { command: Command::PlaceBuilding { origin, .. }, reason } = e
+                && self.on_ring(state, defs, *origin)
+            {
+                self.rejected += 1;
+                log::info!("KINGDOMS_DEV_WALLS: no wall at {origin}: {reason} ({} so far)", self.rejected);
             }
         }
         let now = state.clock().tick;
@@ -126,53 +143,40 @@ impl DevWalls {
         let Some(center) = headquarters_center(state, defs) else { return Vec::new() };
         if !self.placed {
             self.placed = true;
-            let Some(road) = cheapest_road(state, defs) else { return Vec::new() };
             let tiles = ring(center, self.radius);
             let roads: Vec<IVec2> = tiles.iter().copied().filter(|p| state.roads().get(*p).is_some()).collect();
-            // A gate on every road crossing, and in the middle of each side without one.
-            self.gates = roads.clone();
-            for (side, middle) in side_middles(center, self.radius).into_iter().enumerate() {
-                if !roads.iter().any(|r| side_of(center, self.radius, *r) == side) {
-                    self.gates.push(middle);
-                }
-            }
+            self.gates = gate_tiles(center, self.radius, &roads);
             log::info!("KINGDOMS_DEV_WALLS: {} segments, gates at {:?}", tiles.len(), self.gates);
-            let mut commands = Vec::with_capacity(tiles.len() + 6);
+            let mut commands = Vec::with_capacity(tiles.len() + 1);
             if !roads.is_empty() {
                 commands.push(Command::RemoveRoad { tiles: roads });
-            }
-            // The road ring inside the wall, and a road from it towards the headquarters until
-            // it meets the town's roads.
-            for chain in road_loop(center, self.radius - 1) {
-                // Split where a road cannot go (boulders, water, buildings): the rest still helps.
-                let open = |p: &IVec2| {
-                    state.world().get(*p).is_some_and(|t| !t.is_water() && t.vegetation != Vegetation::Boulder) && state.buildings().at(*p).is_none()
-                };
-                for run in chain.split(|p| !open(p)).filter(|run| run.len() > 1) {
-                    commands.push(Command::BuildRoad { tiles: run.to_vec(), road });
-                }
-            }
-            let spoke: Vec<IVec2> = (1..self.radius)
-                .rev()
-                .map(|d| center + IVec2::new(0, d))
-                .take_while(|p| state.roads().get(*p).is_none() && state.buildings().at(*p).is_none())
-                .collect();
-            if spoke.len() > 1 {
-                commands.push(Command::BuildRoad { tiles: spoke, road });
             }
             commands.extend(tiles.into_iter().map(|origin| Command::PlaceBuilding { kind: wall, origin, rotation: inward(center, self.radius, origin) }));
             return commands;
         }
         // Gates replace standing segments (sites or finished).
         let role_at = |p: IVec2| state.buildings().at(p).and_then(|(_, b)| defs.buildings().get(b.kind().index())).map(|d| d.role);
+        let radius = self.radius;
+        let planned = self.gates.clone();
         let mut commands = Vec::new();
+        for p in &mut self.gates {
+            if role_at(*p).is_none() {
+                // The segment was refused (water, a building): the nearest standing piece of
+                // that side gets the gate instead.
+                let free = |q: IVec2| role_at(q) == Some(BuildingRole::WallSegment) && !planned.contains(&q);
+                if let Some(q) = nearest_on_side(center, radius, *p, free) {
+                    log::info!("KINGDOMS_DEV_WALLS: gate at {q} instead of {p}");
+                    *p = q;
+                }
+            }
+        }
         self.gates.retain(|p| match role_at(*p) {
             Some(BuildingRole::Gate) => false,
             Some(BuildingRole::WallSegment) => {
-                commands.push(Command::PlaceBuilding { kind: gate, origin: *p, rotation: inward(center, self.radius, *p) });
+                commands.push(Command::PlaceBuilding { kind: gate, origin: *p, rotation: inward(center, radius, *p) });
                 true
             }
-            // Nothing stands there (the segment was rejected): no gate either.
+            // Nothing stands on that side: no gate either.
             _ => false,
         });
         commands
@@ -190,27 +194,53 @@ impl DevWalls {
 mod tests {
     use super::*;
 
+    /// The tile a piece's entrance lies on.
+    fn entrance(c: IVec2, radius: i32, p: IVec2) -> IVec2 {
+        p + match inward(c, radius, p).quarter_turns() {
+            0 => IVec2::Y,
+            1 => IVec2::NEG_X,
+            2 => IVec2::NEG_Y,
+            _ => IVec2::X,
+        }
+    }
+
     #[test]
-    fn the_ring_has_its_sides_and_a_road_inside() {
+    fn the_ring_is_closed_and_faces_inwards() {
         let c = IVec2::new(10, 10);
         let tiles = ring(c, 3);
-        assert_eq!(tiles.len(), 20, "8 × radius tiles without the corners");
-        assert!(tiles.iter().all(|p| (*p - c).abs().max_element() == 3 && (*p - c).abs().min_element() < 3));
-        // Every piece faces a tile of the road loop one ring further in.
-        let loop_tiles: Vec<IVec2> = road_loop(c, 2).concat();
-        assert!(road_loop(c, 2).iter().all(|chain| chain.windows(2).all(|w| (w[1] - w[0]).abs().element_sum() == 1)));
+        assert_eq!(tiles.len(), 24, "8 × radius tiles, the corners included");
+        assert!(tiles.iter().all(|p| (*p - c).abs().max_element() == 3));
+        // Closed: every piece has exactly two 4-neighbours on the ring.
         for p in &tiles {
-            let entrance = *p + match inward(c, 3, *p).quarter_turns() {
-                0 => IVec2::Y,
-                1 => IVec2::NEG_X,
-                2 => IVec2::NEG_Y,
-                _ => IVec2::X,
-            };
-            assert!(loop_tiles.contains(&entrance), "{p} faces {entrance}");
+            let neighbours = [IVec2::X, IVec2::NEG_X, IVec2::Y, IVec2::NEG_Y].iter().filter(|d| tiles.contains(&(*p + **d))).count();
+            assert_eq!(neighbours, 2, "{p}");
+        }
+        // A side piece faces the inside; a corner faces the next piece of wall.
+        for p in &tiles {
+            let e = entrance(c, 3, *p);
+            if is_corner(c, 3, *p) {
+                assert!(tiles.contains(&e), "corner {p} faces {e}");
+            } else {
+                assert_eq!((e - c).abs().max_element(), 2, "{p} faces {e}");
+            }
         }
         let middles = side_middles(c, 3);
         assert!(middles.iter().all(|m| tiles.contains(m)));
         assert_eq!(middles.map(|m| side_of(c, 3, m)), [0, 1, 2, 3]);
         assert_eq!(side_of(c, 3, IVec2::new(13, 13)), 2, "corners belong to north and south");
+    }
+
+    #[test]
+    fn gates_stand_on_crossings_and_side_middles_never_in_a_corner() {
+        let c = IVec2::new(10, 10);
+        // A road crosses the east side at (13, 11) and the north-west corner.
+        let gates = gate_tiles(c, 3, &[IVec2::new(13, 11), IVec2::new(7, 7)]);
+        assert_eq!(gates, vec![IVec2::new(13, 11), IVec2::new(10, 7), IVec2::new(10, 13), IVec2::new(7, 10)]);
+        assert!(gates.iter().all(|g| !is_corner(c, 3, *g)));
+        // A refused middle: the nearest standing piece of the side, never a corner.
+        let standing = |q: IVec2| q != IVec2::new(13, 10) && q != IVec2::new(13, 11);
+        assert_eq!(nearest_on_side(c, 3, IVec2::new(13, 10), standing), Some(IVec2::new(13, 9)));
+        assert_eq!(nearest_on_side(c, 3, IVec2::new(10, 7), |q| q.x >= 12), Some(IVec2::new(12, 7)));
+        assert_eq!(nearest_on_side(c, 3, IVec2::new(10, 7), |q| q.x == 13), None, "corner");
     }
 }

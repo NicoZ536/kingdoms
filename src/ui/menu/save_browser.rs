@@ -128,7 +128,7 @@ impl SaveBrowser {
                     ui.vertical_centered(|ui| {
                         let text = match self.mode {
                             BrowserMode::Load => "Noch keine Spielstände vorhanden.",
-                            BrowserMode::Save => "Noch keine benannten Spielstände – gib oben einen Namen ein.",
+                            BrowserMode::Save => "Noch keine benannten Spielstände – gebt oben einen Namen ein.",
                         };
                         ui.label(RichText::new(text).color(Palette::INK_SOFT));
                     });

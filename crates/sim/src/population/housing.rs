@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::buildings::{BuildingId, BuildingPhase};
 use crate::defs::{BuildingTypeId, Defs, HousingRequirements, NeedKind, ResourceId, ServiceKind};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::TICKS_PER_HOUR;
 
@@ -196,7 +196,7 @@ fn split_household(state: &mut GameState, id: HouseholdId, limit: u16, events: &
     events.push(SimEvent::Notification(Notification::new(
         Severity::Info,
         format!("Familie {family} ist zu groß für ein Haus und verteilt sich auf {} Haushalte.", created.len() + 1),
-    )));
+    ).with_kind(NotificationKind::Population)));
     state.workforce.mark_dirty();
     created
 }
@@ -291,7 +291,7 @@ pub(crate) fn sync_homes(state: &mut GameState, defs: &Defs, events: &mut Vec<Si
             if let Some(at) = camp {
                 note = note.at(at);
             }
-            state.population.notify(Notice::Homeless, tick, note, events);
+            state.population.notify_waiting(defs, Notice::Homeless, tick, note, events);
         }
     }
 }
@@ -446,7 +446,7 @@ fn downgrade(state: &mut GameState, defs: &Defs, id: BuildingId, events: &mut Ve
     events.push(SimEvent::HouseDowngraded { building: id, from, to });
     let text = format!("Abstieg: {} wird wieder zu {} – die Bewohner waren zu lange unversorgt.", cur.name, prev.name);
     let tick = state.clock.tick;
-    state.population.notify(Notice::Downgrade, tick, Notification::new(Severity::Warning, text).at(entrance), events);
+    state.population.notify(Notice::Downgrade, tick, Notification::new(Severity::Warning, text).at(entrance).for_building(id), events);
     state.workforce.mark_dirty();
     sync_homes(state, defs, events);
 }

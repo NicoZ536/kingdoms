@@ -39,7 +39,7 @@ use crate::command::{CommandResult, RejectReason};
 use crate::defs::{Defs, ResourceAmount, ResourceId};
 use crate::economy::trade::{TradeDirection, TradeOrder, active_trading_post};
 use crate::economy::{LedgerCategory, MILLI_PER_GOLD, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::movement::{self, Destination, Motion, Traveler, TravelerId, TripPhase, WalkerId};
 use crate::population::CitizenRole;
 use crate::state::GameState;
@@ -433,7 +433,7 @@ pub(crate) fn send(
     events.push(SimEvent::CaravanDeparted { caravan: caravan_id, kingdom: id, kind: CaravanKind::Own });
     let text = format!("Eure Karawane bricht nach {name} auf.");
     state.diplomacy.record(tick, Some(id), None, text.clone());
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Trade).at(at)));
     Ok(())
 }
 
@@ -619,7 +619,7 @@ fn roll_robbery(state: &mut GameState, defs: &Defs, index: usize, events: &mut V
         CaravanKind::Foreign => format!("Eine Karawane aus {partner_name} wurde auf dem Weg zu Euch von Leuten aus {robber_name} ausgeraubt."),
     };
     state.diplomacy.record(tick, Some(partner), Some(robber), text.clone());
-    events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).at(robber_seat)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).with_kind(NotificationKind::Trade).at(robber_seat)));
     true
 }
 
@@ -900,7 +900,7 @@ fn arrive_on_map(state: &mut GameState, defs: &Defs, index: usize, post: Option<
         let name = state.diplomacy.kingdoms[kingdom.index()].name.clone();
         events.push(SimEvent::CaravanArrived { caravan, kingdom });
         let text = format!("Händler aus {name} nähern sich Eurem Handelskontor.");
-        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(entry)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Trade).at(entry)));
     }
 }
 
@@ -984,7 +984,7 @@ fn trade_at_post(state: &mut GameState, defs: &Defs, index: usize, events: &mut 
     let caravan = state.diplomacy.caravans[index].id;
     if sold.is_empty() && bought.is_empty() {
         let text = format!("Die Händler aus {name} fanden am Handelskontor nichts zu handeln.");
-        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Trade).at(at)));
         return;
     }
     let points = defs.rules().diplomacy.relations.trade_points;
@@ -1002,7 +1002,7 @@ fn trade_at_post(state: &mut GameState, defs: &Defs, index: usize, events: &mut 
     let tick = state.clock.tick;
     state.diplomacy.record(tick, Some(kingdom), None, text.clone());
     events.push(SimEvent::CaravanTraded { caravan, kingdom, sold, bought });
-    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Trade).at(at)));
 }
 
 /// An own caravan at the partner: it sells what the partner wants and buys the wished goods
@@ -1098,7 +1098,7 @@ fn settle_own(state: &mut GameState, defs: &Defs, index: usize, events: &mut Vec
     };
     state.diplomacy.record(tick, Some(kingdom), None, text.clone());
     events.push(SimEvent::CaravanReturned { caravan, kingdom, goods: cargo, gold: purse / MILLI_PER_GOLD });
-    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Trade).at(at)));
 }
 
 /// Consistency of the caravans and their walkers (loaded saves): unique ids below the next id,

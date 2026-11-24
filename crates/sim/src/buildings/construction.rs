@@ -12,7 +12,7 @@ use super::{
 use crate::command::{CommandResult, RejectReason};
 use crate::defs::{BuildingDef, BuildingRole, BuildingTypeId, DamageCause, Defs, GameRules, ResourceAmount};
 use crate::economy::{LedgerCategory, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::grid::TileRect;
 use crate::production::ProductionStatus;
 use crate::state::GameState;
@@ -175,17 +175,17 @@ fn finish(state: &mut GameState, defs: &Defs, id: BuildingId, events: &mut Vec<S
             if site.purpose == SitePurpose::Move {
                 events.push(SimEvent::BuildingMoved { building: id, kind });
                 events.push(SimEvent::Notification(
-                    Notification::new(Severity::Info, format!("Umzug abgeschlossen: {name}")).at(position),
+                    Notification::new(Severity::Info, format!("Umzug abgeschlossen: {name}")).with_kind(NotificationKind::Construction).for_building(id).at(position),
                 ));
             } else if site.purpose == SitePurpose::Repair {
                 events.push(SimEvent::BuildingRepaired { building: id, kind });
                 events.push(SimEvent::Notification(
-                    Notification::new(Severity::Good, format!("Wiederaufgebaut: {name}")).at(position),
+                    Notification::new(Severity::Good, format!("Wiederaufgebaut: {name}")).with_kind(NotificationKind::Construction).for_building(id).at(position),
                 ));
             } else {
                 events.push(SimEvent::BuildingCompleted { building: id, kind });
                 events.push(SimEvent::Notification(
-                    Notification::new(Severity::Good, format!("Fertiggestellt: {name}")).at(position),
+                    Notification::new(Severity::Good, format!("Fertiggestellt: {name}")).with_kind(NotificationKind::Construction).for_building(id).at(position),
                 ));
             }
         }
@@ -195,7 +195,7 @@ fn finish(state: &mut GameState, defs: &Defs, id: BuildingId, events: &mut Vec<S
             b.kind = up.target;
             events.push(SimEvent::BuildingUpgraded { building: id, from, to: up.target });
             events.push(SimEvent::Notification(
-                Notification::new(Severity::Good, format!("Ausgebaut: {}", building_name(defs, up.target))).at(position),
+                Notification::new(Severity::Good, format!("Ausgebaut: {}", building_name(defs, up.target))).with_kind(NotificationKind::Construction).for_building(id).at(position),
             ));
         }
         BuildingPhase::Active => return,
@@ -286,7 +286,7 @@ pub(crate) fn run_auto_upgrades(state: &mut GameState, defs: &Defs, events: &mut
             && let BuildingPhase::Upgrading(up) = &b.phase
         {
             let text = format!("Ausbau begonnen: Aus „{}“ wird „{}“.", building_name(defs, b.kind), building_name(defs, up.target));
-            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(b.entrance)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Construction).for_building(id).at(b.entrance)));
         }
     }
 }

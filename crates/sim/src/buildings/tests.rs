@@ -224,6 +224,57 @@ fn gates_replace_wall_segments() {
 }
 
 #[test]
+fn wall_pieces_and_towers_are_entered_from_any_side_without_a_road() {
+    let mut state = flat_state(32);
+    tech(&mut state, "city_walls");
+    tech(&mut state, "militia_training");
+    crate::navigation::prepare(&mut state, defs());
+    // A tower needs no road (no warning), a house does.
+    let tower = check_placement(&state, defs(), kind("watchtower"), IVec2::new(10, 10), rot(0));
+    assert!(tower.ok && !tower.warnings.contains(&PlacementWarning::NoRoadAccess), "{:?} {:?}", tower.errors, tower.warnings);
+    let house = check_placement(&state, defs(), kind("house_wood"), IVec2::new(20, 20), rot(0));
+    assert!(house.warnings.contains(&PlacementWarning::NoRoadAccess));
+    assert!(!defs().building(kind("watchtower")).needs_road() && defs().building(kind("house_wood")).needs_road());
+    // A wall corner: its entrance (south) is the next piece of wall; it is entered from the two
+    // free sides, north first. A house only through its entrance.
+    let corner = spawn(&mut state, "wall", 10, 10);
+    spawn(&mut state, "wall", 10, 11);
+    spawn(&mut state, "wall", 11, 10);
+    crate::navigation::prepare(&mut state, defs());
+    let tiles: Vec<(IVec2, crate::grid::Direction)> = access_points(&state, defs(), corner).iter().map(|a| (a.tile, a.into)).collect();
+    use crate::grid::Direction;
+    assert_eq!(tiles, vec![(IVec2::new(10, 9), Direction::South), (IVec2::new(9, 10), Direction::East)]);
+    let free = spawn(&mut state, "wall", 20, 10);
+    crate::navigation::prepare(&mut state, defs());
+    assert_eq!(access_points(&state, defs(), free)[0].tile, IVec2::new(20, 11), "the entrance comes first");
+    assert_eq!(access_points(&state, defs(), free).len(), 4);
+    let home = spawn(&mut state, "house_wood", 20, 20);
+    let entrance = state.building(home).unwrap().entrance();
+    assert_eq!(access_points(&state, defs(), home).iter().map(|a| a.tile).collect::<Vec<_>>(), vec![entrance]);
+    assert!(is_open_sided(&state, defs(), corner) && !is_open_sided(&state, defs(), home));
+}
+
+#[test]
+fn a_building_may_not_shut_a_citizen_in() {
+    let mut state = flat_state(32);
+    crate::test_support::set_adults(&mut state, 1);
+    run(&mut state, 1);
+    // A shore pocket: water west, north and south of (10, 10); only east is open.
+    for p in [IVec2::new(9, 10), IVec2::new(10, 9), IVec2::new(10, 11), IVec2::new(9, 9), IVec2::new(9, 11)] {
+        state.world.tile_mut(p).terrain = Terrain::ShallowWater;
+    }
+    crate::navigation::rebuild(&mut state, defs());
+    let citizen = state.population.citizens().next().map(|(id, _)| id).unwrap();
+    crate::population::movement::place(&mut state, crate::population::WalkerId::Citizen(citizen), crate::population::Motion::standing(IVec2::new(10, 10)));
+    // A well east of the pocket would shut the citizen in; nobody there, it may stand.
+    assert_eq!(errors(&state, "well", 11, 10), vec![PlacementError::TrapsCitizen]);
+    assert_eq!(PlacementError::TrapsCitizen.to_string(), "Das Gebäude würde einen Bewohner einschließen.");
+    assert!(errors(&state, "well", 12, 10).is_empty(), "a building that leaves the way open");
+    crate::population::movement::place(&mut state, crate::population::WalkerId::Citizen(citizen), crate::population::Motion::standing(IVec2::new(16, 16)));
+    assert!(errors(&state, "well", 11, 10).is_empty(), "nobody in the pocket");
+}
+
+#[test]
 fn vegetation_is_cleared_with_wood_and_extra_time() {
     let mut state = flat_state(32);
     state.world.tile_mut(IVec2::new(10, 10)).vegetation = tree();

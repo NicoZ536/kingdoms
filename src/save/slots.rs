@@ -16,7 +16,8 @@ use std::path::{Path, PathBuf};
 use kingdoms_sim::save::{
     MIN_SUPPORTED_FORMAT_VERSION, SAVE_EXTENSION, SAVE_FORMAT_VERSION, SaveError, SaveHeader, read_header_from_file,
 };
-use kingdoms_sim::event::Severity;
+use kingdoms_sim::buildings::BuildingId;
+use kingdoms_sim::event::{NotificationKind, Severity};
 use kingdoms_sim::state::GameState;
 use serde::{Deserialize, Serialize};
 
@@ -170,6 +171,12 @@ pub struct SavedNotification {
     pub position: Option<(i32, i32)>,
     /// How often it came again (shown as „×2“ …).
     pub repeats: u32,
+    /// What it is about (`NotificationKind`; lists written before it existed read as general).
+    #[serde(default)]
+    pub kind: NotificationKind,
+    /// The building it is about, if any.
+    #[serde(default)]
+    pub building: Option<BuildingId>,
 }
 
 /// What the save list shows beyond the simulation's header.

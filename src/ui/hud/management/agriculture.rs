@@ -1,6 +1,7 @@
 //! „Landwirtschaft & Wetter“: today's weather with intensity, its effects, snow cover and
 //! ground wetness, the season and the days left in it (and who forces it, if anybody); the food
-//! forecast for the coming winter (`report::food_forecast`); farms, claimed fields, the average
+//! forecast for the coming winter (`report::food_forecast`) and the fuel for heating
+//! (`report::fuel_forecast`, „Heizen geht vor“); farms, claimed fields, the average
 //! condition of the sown fields (which the harvest events depend on), crops with growth and the
 //! expected harvests (`report::agriculture_summary`, `report::farm_report`). A click on a farm
 //! selects it.
@@ -9,12 +10,12 @@ use kingdoms_engine::egui::{self, Color32, Pos2, RichText, Stroke, Ui, Vec2};
 use kingdoms_sim::agriculture::FarmKind;
 use kingdoms_sim::buildings::BuildingId;
 use kingdoms_sim::defs::{Defs, EventCondition, Weather};
-use kingdoms_sim::report::{self, AgricultureSummary, FoodForecast, WeatherReport};
+use kingdoms_sim::report::{self, AgricultureSummary, FoodForecast, FuelForecast, WeatherReport};
 use kingdoms_sim::time::Season;
 
 use super::production::status_style;
 use super::table::{self, CellAlign, ROW_HEIGHT};
-use super::{Cached, TabContext, card_row, hint, select};
+use super::{Cached, TabContext, card_row, columns, hint, select};
 use crate::ui::hud::HudAction;
 use crate::ui::hud::format::{days_dative, int};
 use crate::ui::theme::{self, Palette, heading_font};
@@ -40,6 +41,7 @@ struct Data {
     weather: WeatherReport,
     summary: AgricultureSummary,
     forecast: FoodForecast,
+    fuel: FuelForecast,
     farms: Vec<FarmRow>,
 }
 
@@ -194,11 +196,12 @@ impl AgricultureTab {
                 weather: report::weather_report(state, defs),
                 summary: report::agriculture_summary(state, defs),
                 forecast: report::food_forecast(state, defs),
+                fuel: report::fuel_forecast(state, defs),
                 farms,
             }
         });
         let a = &data.summary;
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             weather_card(&mut cols[0], ctx, &data.weather);
             cols[0].add_space(4.0);
             card_row(
@@ -219,6 +222,8 @@ impl AgricultureTab {
             );
             field_condition_row(&mut cols[0], defs, a.average_condition);
             forecast_card(&mut cols[1], &data.forecast);
+            cols[1].add_space(4.0);
+            fuel_card(&mut cols[1], &data.fuel, defs.rules().population.fuel_reserve_days);
         });
         section_header(ui, "Feldfrüchte");
         const C: [f32; 6] = [170.0, 70.0, 70.0, 170.0, 200.0, 300.0];
@@ -419,6 +424,45 @@ fn forecast_card(ui: &mut Ui, f: &FoodForecast) {
     });
 }
 
+/// Colour of the fuel summary: short in the heating season is bad, a stock that lasts while the
+/// households heat is good, anything else (nobody heats) neutral.
+fn fuel_color(f: &FuelForecast) -> Color32 {
+    if f.short {
+        Palette::BAD
+    } else if f.heating_season {
+        Palette::GOOD
+    } else {
+        Palette::INK
+    }
+}
+
+/// „Brennstoff zum Heizen“: how long wood and coal last for heating and, in the heating season,
+/// the households' reserve the workshops do not get („Heizen geht vor“).
+fn fuel_card(ui: &mut Ui, f: &FuelForecast, reserve_days: f32) {
+    theme::inset_frame().show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(RichText::new("Brennstoff zum Heizen").font(heading_font(17.0)).color(Palette::INK));
+        ui.add(egui::Label::new(RichText::new(&f.summary).strong().color(fuel_color(f))).wrap());
+        egui::Grid::new("fuel_forecast").num_columns(2).spacing([14.0, 2.0]).show(ui, |ui| {
+            let row = |ui: &mut Ui, label: &str, value: String| crate::ui::widgets::stat_row(ui, label, value);
+            row(ui, "Holz und Kohle im Lager", food(f.in_stock));
+            row(ui, "Heizbedarf je Tag", food(f.per_day));
+            row(ui, "Heizzeit", if f.heating_season { "ja".to_owned() } else { "nein".to_owned() });
+            if f.heating_season {
+                row(ui, "Heizvorrat der Häuser", food(f.reserve));
+            }
+        });
+        ui.add(egui::Label::new(RichText::new(fuel_note(reserve_days)).small().color(Palette::INK_SOFT)).wrap());
+    });
+}
+
+/// The rule behind the reserve, e.g. „Heizen geht vor: In der Heizzeit bekommen Werkstätten Holz
+/// und Kohle nur über einen Vorrat von 2 Tagen Heizbedarf hinaus.“
+fn fuel_note(reserve_days: f32) -> String {
+    let days = days_dative(f64::from(reserve_days));
+    format!("Heizen geht vor: In der Heizzeit bekommen Werkstätten Holz und Kohle nur über einen Vorrat von {days} Heizbedarf hinaus. Mengen als Heizwert in Holz.")
+}
+
 /// Colour of a temperature: blue at frost, ink when mild, warm when hot.
 pub fn temperature_color(celsius: i8) -> Color32 {
     match celsius {
@@ -491,6 +535,26 @@ pub fn weather_glyph(ui: &mut Ui, weather: Weather, size: f32) {
 mod tests {
     use super::*;
     use crate::ui::hud::management::tests::test_defs;
+
+    #[test]
+    fn the_fuel_card_warns_in_the_heating_season() {
+        assert_eq!(
+            fuel_note(2.0),
+            "Heizen geht vor: In der Heizzeit bekommen Werkstätten Holz und Kohle nur über einen Vorrat von 2 Tagen Heizbedarf hinaus. Mengen als Heizwert in Holz."
+        );
+        assert!(fuel_note(1.0).contains("Vorrat von 1 Tag Heizbedarf"));
+        let mut f = FuelForecast { in_stock: 300.0, per_day: 150.0, heating_season: true, reserve: 300.0, days: Some(2), short: true, summary: String::new() };
+        assert_eq!(fuel_color(&f), Palette::BAD);
+        f.short = false;
+        assert_eq!(fuel_color(&f), Palette::GOOD);
+        f.heating_season = false;
+        assert_eq!(fuel_color(&f), Palette::INK, "nobody heats: no verdict");
+        // The real forecast of a fresh game.
+        let defs = test_defs();
+        let state = kingdoms_sim::state::GameState::new(&defs, kingdoms_sim::state::GameSettings::new(&defs, 7, kingdoms_sim::world::WorldSize::Small));
+        let f = report::fuel_forecast(&state, &defs);
+        assert!(!f.summary.is_empty() && f.in_stock >= 0.0 && f.per_day >= 0.0);
+    }
 
     #[test]
     fn season_and_amount_texts() {

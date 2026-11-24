@@ -118,6 +118,10 @@ pub struct Economy {
     bankrupt: bool,
     /// Accrual remainders per ledger category in 1/24 milli-gold (hourly booking of daily rates).
     carry: [i64; LedgerCategory::ALL.len()],
+    /// The spell of a shrinking treasury: warned once when it begins (docs/game_design.md §2
+    /// Meldungen), the tick it was last seen.
+    #[serde(default)]
+    low_treasury: crate::notices::Spells<u8>,
 }
 
 impl Economy {
@@ -134,6 +138,7 @@ impl Economy {
             trade: TradeBook::default(),
             bankrupt: false,
             carry: [0; LedgerCategory::ALL.len()],
+            low_treasury: crate::notices::Spells::default(),
         }
     }
 
@@ -256,6 +261,17 @@ impl Economy {
 
     pub(crate) fn set_bankrupt(&mut self, bankrupt: bool) {
         self.bankrupt = bankrupt;
+    }
+
+    /// The treasury runs out soon at `now`: true if this begins a new spell (the warning is
+    /// given once per spell, `notices.waiting_resolved_hours`).
+    pub(crate) fn low_treasury_begins(&mut self, now: u64, gap: u64) -> bool {
+        self.low_treasury.begins(0, now, gap)
+    }
+
+    /// Error if the treasury warning was given in the future (a crafted save).
+    pub(crate) fn validate_notices(&self, now: u64) -> Result<(), String> {
+        self.low_treasury.validate(now, "treasury notices")
     }
 
     pub(crate) fn ledger_mut(&mut self) -> &mut Ledger {

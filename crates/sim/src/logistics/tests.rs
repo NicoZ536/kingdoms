@@ -151,15 +151,15 @@ fn storages_without_carriers_leave_jobs_waiting_and_warn() {
     assert_eq!(state.building(store).unwrap().staffed(), 0);
     assert!(state.logistics().waiting().any(|j| j.carrier_base == store && j.resource == meat));
     assert_eq!(storages_without_carriers(&state, defs()), vec![store]);
-    let warnings: Vec<&str> = events
+    // Two checks, one spell: told once (docs/game_design.md §2 Meldungen), linked to the store.
+    let warnings: Vec<&crate::event::Notification> = events
         .iter()
-        .filter_map(|e| match e {
-            SimEvent::Notification(n) => Some(n.text.as_str()),
-            _ => None,
-        })
-        .filter(|t| t.starts_with("Keine Träger"))
+        .filter_map(SimEvent::notification)
+        .filter(|n| n.text.starts_with("Keine Träger"))
         .collect();
-    assert_eq!(warnings, vec!["Keine Träger: Vorratsspeicher hat keine Arbeiter, Transporte bleiben liegen."; 2]);
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert_eq!(warnings[0].text, "Keine Träger: Vorratsspeicher hat keine Arbeiter, Transporte bleiben liegen.");
+    assert_eq!((warnings[0].kind, warnings[0].building), (crate::event::NotificationKind::NoCarriers, Some(store)));
     // A second adult becomes the storehouse's carrier: the meat moves, the warning stops.
     crate::test_support::set_adults(&mut state, 2);
     run(&mut state, crate::time::TICKS_PER_DAY);
@@ -628,4 +628,35 @@ fn validate_rejects_goods_that_do_not_match_their_job() {
     let mut broken = state.clone();
     broken.logistics.job_mut(job.id).unwrap().stage = JobStage::Waiting;
     assert!(broken.validate_entities(d).is_err(), "carried goods without a carrying job");
+}
+
+#[test]
+fn an_outpost_warehouse_is_restocked_for_a_site_beyond_the_towns_reach() {
+    let d = defs();
+    let mut state = flat_state(64);
+    let store = depot(&state);
+    // An empty warehouse between the depot (radius 24) and the site: only it reaches the site.
+    let outpost = spawn(&mut state, "warehouse", 38, 38);
+    link(&mut state, outpost, store);
+    state.workforce.mark_dirty();
+    let kind = d.building_id("house_wood").unwrap();
+    let events = exec(&mut state, Command::PlaceBuilding { kind, origin: IVec2::new(16, 16), rotation: crate::buildings::Rotation::default() });
+    assert!(crate::test_support::rejection(&events).is_none(), "{:?}", crate::test_support::rejection(&events));
+    let site = state.buildings().at(IVec2::new(16, 16)).map(|(id, _)| id).unwrap();
+    link(&mut state, site, outpost);
+    let site_rect = state.building(site).unwrap().rect();
+    assert!(state.building(store).unwrap().rect().distance_to_rect(&site_rect) > 24, "the depot does not reach the site");
+    // The depot's carriers bring the wood to the outpost (Nachschub), the outpost's to the site.
+    let mut restocked = false;
+    for _ in 0..2 * crate::time::TICKS_PER_DAY {
+        run(&mut state, 1);
+        restocked |= state.logistics().jobs().iter().any(|j| j.kind == TransportKind::Restock && j.source == store && j.target == outpost);
+        if state.building(site).and_then(|b| b.construction_site()).is_none_or(|s| s.fully_supplied()) {
+            break;
+        }
+    }
+    assert!(restocked, "a restock job from the depot to the outpost");
+    assert_eq!(TransportKind::Restock.display_name(), "Nachschub");
+    assert!(state.building(site).and_then(|b| b.construction_site()).is_none_or(|s| s.fully_supplied()), "the site got its wood");
+    state.validate_entities(d).unwrap();
 }

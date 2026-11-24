@@ -151,7 +151,7 @@ fn confirm_exit(ui: &mut egui::Ui, target: ExitTarget, unsaved: &str) -> Option<
     };
     menu::page_title(ui, title, None);
     ui.add_space(4.0);
-    ui.add(egui::Label::new(format!("Seit dem letzten Speichern {unsaved} vergangen. Dieser Fortschritt geht verloren, wenn du ohne Speichern gehst.")).wrap());
+    ui.add(egui::Label::new(format!("Seit dem letzten Speichern {unsaved} vergangen. Dieser Fortschritt geht verloren, wenn Ihr ohne Speichern geht.")).wrap());
     ui.add_space(14.0);
     let mut choice = None;
     ui.horizontal(|ui| {
@@ -208,6 +208,17 @@ impl WorldScene {
     /// Shows `session`; the developer options of `options` may move the camera, preselect
     /// something, activate a tool or open the pause menu.
     pub fn new(ctx: &mut EngineContext, mut session: Session, options: &LaunchOptions) -> Self {
+        // A developer case names what to look at; the explicit options take precedence.
+        let options = &match session.dev_view() {
+            Some(dev) => LaunchOptions {
+                focus: options.focus.or(Some(dev.focus)),
+                select: options.select.or(dev.select),
+                tool: options.tool.clone().or_else(|| dev.tool.clone()),
+                cursor: options.cursor.or(dev.cursor),
+                ..options.clone()
+            },
+            None => options.clone(),
+        };
         let view = WorldView::new(&mut session, &mut ctx.renderer, &ctx.assets);
         let mut camera = CameraController::new(ctx);
         camera.set_map_bounds(session.state().world().size());
@@ -1376,6 +1387,8 @@ mod tests {
             text: "Rohstoffmangel: Dem Gebäude „Sägewerk“ fehlt Holz.".to_owned(),
             position: Some((12, 30)),
             repeats: 3,
+            kind: kingdoms_sim::event::NotificationKind::MissingInput,
+            building: None,
         }];
         writer.submit(SaveJob::new(&original, path.clone(), SlotKind::Manual, "Fortsetzung", 1).with_notifications(news.clone()));
         assert!(writer.finish().iter().all(|o| o.result.is_ok()));

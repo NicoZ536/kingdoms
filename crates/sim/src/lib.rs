@@ -70,6 +70,7 @@ pub mod logistics;
 pub mod military;
 pub mod nature;
 pub mod navigation;
+pub(crate) mod notices;
 pub mod policy;
 pub mod population;
 pub mod production;

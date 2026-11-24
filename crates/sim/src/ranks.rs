@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::defs::{BuildingTypeId, Defs, RankDef};
 use crate::diplomacy::KingdomId;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 
 /// Why the game was lost.
@@ -186,7 +186,7 @@ pub(crate) fn defeat(state: &mut GameState, _defs: &Defs, reason: DefeatReason, 
     state.progress.game_over = Some(GameOver { reason, tick: state.clock.tick });
     events.push(SimEvent::GameOver { reason });
     let text = format!("Das Spiel ist verloren. {}", defeat_text(state, reason));
-    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::GameOver)));
     log::info!("game over at tick {}: {reason:?}", state.clock.tick);
 }
 
@@ -213,7 +213,7 @@ pub(crate) fn run(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEvent>
             "Euer Reich ist zum Rang „{}“ aufgestiegen! Euer Ansehen bei den anderen Königreichen wächst ({:+} Beziehung).",
             rank.name, rank.prestige
         );
-        events.push(SimEvent::Notification(Notification::new(Severity::Good, text)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Rank)));
         crate::diplomacy::relations::announce_states(state, defs, events);
     }
 }

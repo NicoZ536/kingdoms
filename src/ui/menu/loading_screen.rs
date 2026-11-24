@@ -36,7 +36,7 @@ const HINT_SECONDS: f64 = 7.0;
 fn hints(actions: &ActionMap<Action>) -> Vec<String> {
     let key = |a: Action| actions.bindings(a).first().map(binding_label).unwrap_or_else(|| "–".to_owned());
     vec![
-        format!("Mit {} öffnest du das Baumenü; {} dreht ein Gebäude vor dem Platzieren.", key(Action::ToggleBuildMenu), key(Action::Rotate)),
+        format!("Mit {} öffnet Ihr das Baumenü; {} dreht ein Gebäude vor dem Platzieren.", key(Action::ToggleBuildMenu), key(Action::Rotate)),
         format!(
             "{} hält das Spiel an, {} · {} · {} wählen das Tempo.",
             key(Action::TogglePause),
@@ -52,7 +52,7 @@ fn hints(actions: &ActionMap<Action>) -> Vec<String> {
             key(Action::WindowProduction),
             key(Action::WindowFinance)
         ),
-        "Straßen ziehst du mit gedrückter linker Maustaste; ein Rechtsklick bricht ab.".to_owned(),
+        "Straßen zieht Ihr mit gedrückter linker Maustaste; ein Rechtsklick bricht ab.".to_owned(),
         "In den Einstellungen lassen sich alle Tasten neu belegen.".to_owned(),
     ]
 }

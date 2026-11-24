@@ -127,16 +127,19 @@ fn winter_needs_fuel() {
     state.clock = crate::time::GameClock::from_date(1, crate::time::Season::Winter, 1, 6, 0).unwrap();
     let house = spawn(&mut state, "house_wood", 30, 30);
     spawn(&mut state, "well", 33, 33);
-    run(&mut state, 1);
+    let mut events = run(&mut state, 1);
     let c = residents(&state, house)[0];
     let hh = state.population.citizen(c).unwrap().household();
     let wood = d.resource_id("wood").unwrap();
     let coal = d.resource_id("coal").unwrap();
     // The first errand brings food and fuel; warmth recovers within hours.
-    crate::test_support::run_until(&mut state, TICKS_PER_DAY, |s| {
-        let h = s.population.household(hh).unwrap();
-        h.supply().fuel && h.pantry_milli(wood) + h.pantry_milli(coal) > 0 && need(s, c, NeedKind::Warmth) == 100
-    });
+    for _ in 0..TICKS_PER_DAY {
+        let h = state.population.household(hh).unwrap();
+        if h.supply().fuel && h.pantry_milli(wood) + h.pantry_milli(coal) > 0 && need(&state, c, NeedKind::Warmth) == 100 {
+            break;
+        }
+        events.extend(run(&mut state, 1));
+    }
     let h = state.population.household(hh).unwrap();
     assert!(h.supply().fuel);
     assert!(h.pantry_milli(wood) + h.pantry_milli(coal) > 0, "fuel taken from the depot");
@@ -151,10 +154,15 @@ fn winter_needs_fuel() {
     for (_, h) in state.population.households.iter_mut() {
         h.pantry.retain(|p| p.resource != wood && p.resource != coal);
     }
-    let events = run(&mut state, 12 * TICKS_PER_HOUR);
+    events.extend(run(&mut state, 12 * TICKS_PER_HOUR));
     assert!(!state.population.household(hh).unwrap().supply().fuel);
     assert!(need(&state, c, NeedKind::Warmth) < d.rules().population.freezing_warmth);
-    assert!(events.iter().filter_map(SimEvent::notification).any(|n| n.text.starts_with("Brennstoffmangel")));
+    // The cold before the first errand and the cold now are one spell (within
+    // `notices.waiting_resolved_hours`): told once, linked to the house.
+    let warnings: Vec<&crate::event::Notification> =
+        events.iter().filter_map(SimEvent::notification).filter(|n| n.text.starts_with("Brennstoffmangel")).collect();
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert_eq!((warnings[0].kind, warnings[0].building), (crate::event::NotificationKind::NoFuel, Some(house)));
 }
 
 /// Fills a tavern's beer stock (the tests do not connect it to the depot).
@@ -923,4 +931,119 @@ fn households_restock_on_their_errand_not_every_hour() {
     assert_eq!(crate::population::current_activity(&state, d, state.population.citizen(runner).unwrap()), Activity::Errand);
     assert!(food(&state) > 0, "restocked at the depot (no market in reach)");
     state.validate_entities(d).unwrap();
+}
+
+/// Empties the pantries of every household (food, fuel and goods).
+fn empty_pantries(state: &mut GameState) {
+    for (_, h) in state.population.households.iter_mut() {
+        h.pantry.clear();
+    }
+}
+
+#[test]
+fn a_festival_does_not_keep_the_household_from_its_evening_errand() {
+    let d = defs();
+    let mut state = flat_state(48);
+    state.clock = crate::time::GameClock::from_date(1, crate::time::Season::Winter, 2, 6, 0).unwrap();
+    let house = spawn(&mut state, "house_wood", 30, 30);
+    spawn(&mut state, "church", 22, 30);
+    run(&mut state, 1);
+    let events = exec(&mut state, Command::HoldFestival);
+    assert!(crate::test_support::rejection(&events).is_none(), "{:?}", crate::test_support::rejection(&events));
+    // 18:00, the festival afternoon: the runner of the household fetches food and fuel first.
+    let runner = residents(&state, house)[0];
+    let errand = state.clock.tick_of_day();
+    state.clock.tick += 12 * TICKS_PER_HOUR - errand % TICKS_PER_HOUR;
+    assert!(state.events.festival_active(state.clock.tick));
+    let dest = routine::desired_destination(&state, d, runner, &mut routine::Venues::default());
+    assert!(matches!(dest, Some(Destination::Building { purpose: Purpose::Errand, .. })), "{dest:?}");
+    // With a full pantry, outside the errand hour, the runner celebrates.
+    let hh = state.population.citizen(runner).unwrap().household();
+    if let Some(h) = state.population.households.get_mut(hh) {
+        h.add_to_pantry(d.resource_id("bread").unwrap(), 5000);
+        h.add_to_pantry(d.resource_id("wood").unwrap(), 5000);
+    }
+    state.clock.tick -= 3 * TICKS_PER_HOUR;
+    let dest = routine::desired_destination(&state, d, runner, &mut routine::Venues::default());
+    assert!(matches!(dest, Some(Destination::Building { purpose: Purpose::Leisure, .. })), "{dest:?}");
+}
+
+#[test]
+fn heating_comes_before_workshops_and_construction() {
+    let d = defs();
+    let wood = d.resource_id("wood").unwrap();
+    let mut state = flat_state(48);
+    state.clock = crate::time::GameClock::from_date(1, crate::time::Season::Winter, 2, 6, 0).unwrap();
+    // One household (nobody else takes the wood).
+    crate::test_support::set_adults(&mut state, 1);
+    let house = spawn(&mut state, "house_wood", 30, 30);
+    spawn(&mut state, "well", 33, 33);
+    run(&mut state, 1);
+    // Only a little wood is left, all of it promised to a construction site.
+    let depot = depot(&state);
+    let have = state.building(depot).unwrap().inventory().get(wood);
+    state.buildings.get_mut(depot).unwrap().inventory.remove(wood, have - 10);
+    let coal = d.resource_id("coal").unwrap();
+    let have = state.building(depot).unwrap().inventory().get(coal);
+    state.buildings.get_mut(depot).unwrap().inventory.remove(coal, have);
+    // The site is paused, so the carriers leave the wood in the depot.
+    let kind = d.building_id("house_wood").unwrap();
+    let events = exec(&mut state, Command::PlaceBuilding { kind, origin: IVec2::new(20, 20), rotation: crate::buildings::Rotation::default() });
+    assert!(crate::test_support::rejection(&events).is_none(), "{:?}", crate::test_support::rejection(&events));
+    let site = state.buildings.at(IVec2::new(20, 20)).map(|(id, _)| id).unwrap();
+    exec(&mut state, Command::SetBuildingPaused { building: site, paused: true });
+    crate::economy::storage::refresh_stock(&mut state, d);
+    assert_eq!(state.economy.available(wood), 0, "the 10 wood are committed to the site");
+    empty_pantries(&mut state);
+    // The cold household's runner goes for fuel at once and gets the committed wood.
+    let hh = state.population.citizen(residents(&state, house)[0]).unwrap().household();
+    assert!(supply::pantry_without_fuel(&state, d, hh));
+    crate::test_support::run_until(&mut state, TICKS_PER_DAY, |s| s.population.household(hh).unwrap().pantry_milli(wood) > 0);
+    // Twenty people more: a sawmill gets no wood while the stock is below their reserve.
+    crate::test_support::set_adults(&mut state, 21);
+    let report = crate::report::fuel_forecast(&state, d);
+    assert!(report.heating_season && report.short && report.reserve > report.in_stock, "{report:?}");
+    let mill = spawn(&mut state, "sawmill", 36, 37);
+    crate::test_support::link(&mut state, mill, depot);
+    state.buildings.get_mut(depot).unwrap().inventory.add(wood, 5);
+    crate::economy::storage::refresh_stock(&mut state, d);
+    run(&mut state, 2 * TICKS_PER_HOUR);
+    assert!(
+        !state.logistics.jobs().iter().any(|j| j.target == mill && j.resource == wood),
+        "no wood for the sawmill below the heating reserve"
+    );
+    // Plenty of wood: the sawmill is supplied beyond the reserve.
+    state.buildings.get_mut(depot).unwrap().inventory.add(wood, 300);
+    crate::economy::storage::refresh_stock(&mut state, d);
+    let supplied = crate::test_support::run_until(&mut state, TICKS_PER_DAY, |s| {
+        s.logistics.jobs().iter().any(|j| j.target == mill && j.resource == wood)
+            || s.building(mill).and_then(|b| b.production()).is_some_and(|p| p.input().get(wood) > 0)
+    });
+    assert!(supplied < TICKS_PER_DAY);
+}
+
+#[test]
+fn a_fuel_shortage_is_reported_once_per_spell() {
+    let d = defs();
+    let mut state = flat_state(48);
+    state.clock = crate::time::GameClock::from_date(1, crate::time::Season::Winter, 2, 6, 0).unwrap();
+    spawn(&mut state, "house_wood", 30, 30);
+    let depot = depot(&state);
+    for key in ["wood", "coal"] {
+        let r = d.resource_id(key).unwrap();
+        let have = state.building(depot).unwrap().inventory().get(r);
+        state.buildings.get_mut(depot).unwrap().inventory.remove(r, have.saturating_sub(5));
+    }
+    crate::economy::storage::refresh_stock(&mut state, d);
+    let events = run(&mut state, 2 * TICKS_PER_DAY);
+    let notes: Vec<&crate::event::Notification> =
+        events.iter().filter_map(SimEvent::notification).filter(|n| n.text.starts_with("Brennholz wird knapp")).collect();
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert_eq!(notes[0].kind, crate::event::NotificationKind::NoFuel);
+    assert!(notes[0].text.contains("nicht einmal mehr einen Tag") || notes[0].text.contains("nur noch etwa"), "{}", notes[0].text);
+    assert_eq!(
+        supply::fuel_shortage_text(2, false),
+        "Der Winter naht: Holz und Kohle reichen zum Heizen nur noch etwa 2 Tage. Baut Holzfäller und Förster oder kauft Holz – Werkstätten bekommen Brennstoff nur über den Heizvorrat hinaus."
+    );
+    assert!(supply::fuel_shortage_text(1, true).contains("nur noch etwa einen Tag"));
 }

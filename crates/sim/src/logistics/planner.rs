@@ -2,8 +2,10 @@
 //!
 //! Clients are served by building priority (high first), then by id. For every need the
 //! nearest suitable storage is chosen by footprint distance (ties by id): it must be
-//! operational, road-connected to the client, cover the client with its `carrier_radius` and
-//! have the goods (supply) or room (collection) not yet claimed by other jobs.
+//! operational, linked to the client (`Link`: the same road network, or for buildings entered
+//! from any side a walking connection from its entrance to one of their access tiles), cover
+//! the client with its `carrier_radius` and have the goods (supply) or room (collection) not
+//! yet claimed by other jobs.
 //!
 //! A storage takes new jobs only while fewer than [`BACKLOG_PER_CARRIER`] jobs per carrier
 //! (at least that many) wait for its carriers; beyond that the next storage in reach is chosen
@@ -14,7 +16,7 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use super::{JobStage, TransportJob, TransportKind};
-use crate::buildings::{BuildingId, BuildingPhase};
+use crate::buildings::{self, BuildingId, BuildingPhase};
 use crate::defs::{Defs, ResourceId};
 use crate::economy::storage;
 use crate::grid::TileRect;
@@ -26,11 +28,23 @@ use crate::state::GameState;
 /// Waiting jobs a storage may have per carrier before the planner looks elsewhere.
 pub const BACKLOG_PER_CARRIER: u32 = 4;
 
+/// How a client is linked to the storages that serve it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Link {
+    /// Road network component of its entrance (docs/game_design.md §7).
+    Road(u32),
+    /// Walking components of its access tiles: wall segments, gates and towers on a wall line
+    /// ([`crate::defs::Access::AnySide`]) need no road, carriers walk to any side (§5.5).
+    Walk(Vec<u32>),
+}
+
 /// A storage that can take part in transports.
 struct StorageSite {
     id: BuildingId,
     rect: TileRect,
     component: u32,
+    /// Walking component of its entrance (only known while open-sided clients are planned).
+    walk: Option<u32>,
     radius: i32,
     /// Waiting jobs it may have ([`BACKLOG_PER_CARRIER`] per carrier, at least that many).
     max_backlog: u32,
@@ -52,7 +66,7 @@ impl SourceBuffer {
         match kind {
             TransportKind::Collect | TransportKind::Haul => SourceBuffer::Output,
             TransportKind::Return => SourceBuffer::Input,
-            TransportKind::Supply | TransportKind::Construction => SourceBuffer::Storage,
+            TransportKind::Supply | TransportKind::Construction | TransportKind::Restock => SourceBuffer::Storage,
         }
     }
 }
@@ -92,13 +106,40 @@ struct Planner {
     capacity: u32,
     tick: u64,
     new_jobs: Vec<TransportJob>,
+    /// Heating value (thousandths) workshops may still get as fuel input in the heating
+    /// season, beyond the households' reserve (docs/game_design.md §6.1 Heizen geht vor);
+    /// `None` outside it.
+    fuel_budget: Option<u64>,
+    /// Heating value per unit and resource, in thousandths (0: no fuel).
+    heating_pm: Vec<u64>,
 }
 
 impl Planner {
-    /// True if `s` serves a building on network `component` with footprint `rect` and can
-    /// take another job.
-    fn in_reach(&self, s: &StorageSite, component: u32, rect: TileRect) -> bool {
-        s.component == component
+    /// `n` units of `resource` for a workshop, cut to the fuel budget (fuel only).
+    fn fuel_limit(&self, resource: ResourceId, n: u32) -> u32 {
+        let per_unit = self.heating_pm.get(resource.index()).copied().unwrap_or(0);
+        match self.fuel_budget {
+            Some(budget) if per_unit > 0 => n.min(u32::try_from(budget / per_unit).unwrap_or(u32::MAX)),
+            _ => n,
+        }
+    }
+
+    /// Takes `n` units of `resource` out of the fuel budget (fuel only).
+    fn spend_fuel(&mut self, resource: ResourceId, n: u32) {
+        let per_unit = self.heating_pm.get(resource.index()).copied().unwrap_or(0);
+        if let Some(budget) = self.fuel_budget.as_mut() {
+            *budget = budget.saturating_sub(per_unit * u64::from(n));
+        }
+    }
+
+    /// True if `s` serves a building linked by `link` with footprint `rect` and can take
+    /// another job.
+    fn in_reach(&self, s: &StorageSite, link: &Link, rect: TileRect) -> bool {
+        let linked = match link {
+            Link::Road(component) => s.component == *component,
+            Link::Walk(components) => s.walk.is_some_and(|w| components.contains(&w)),
+        };
+        linked
             && s.rect.distance_to_rect(&rect) <= s.radius
             && self.backlog.get(&s.id).copied().unwrap_or(0) < s.max_backlog
     }
@@ -108,12 +149,12 @@ impl Planner {
         &self,
         state: &GameState,
         resource: ResourceId,
-        component: u32,
+        link: &Link,
         rect: TileRect,
     ) -> Option<(BuildingId, u32)> {
         self.storages
             .iter()
-            .filter(|s| self.in_reach(s, component, rect))
+            .filter(|s| self.in_reach(s, link, rect))
             .filter_map(|s| {
                 let inv = &state.buildings.get(s.id)?.inventory;
                 let room = inv.free_space(resource).saturating_sub(self.claims.incoming(s.id, resource));
@@ -128,13 +169,13 @@ impl Planner {
         &self,
         state: &GameState,
         resource: ResourceId,
-        component: u32,
+        link: &Link,
         rect: TileRect,
         except: Option<BuildingId>,
     ) -> Option<(BuildingId, u32)> {
         self.storages
             .iter()
-            .filter(|s| Some(s.id) != except && self.in_reach(s, component, rect))
+            .filter(|s| Some(s.id) != except && self.in_reach(s, link, rect))
             .filter_map(|s| {
                 let inv = &state.buildings.get(s.id)?.inventory;
                 let units = inv.get(resource).saturating_sub(self.claims.outgoing(s.id, resource, SourceBuffer::Storage));
@@ -173,7 +214,7 @@ impl Planner {
     }
 
     /// Collection of output units and input surplus of a finished production building.
-    fn plan_collection(&mut self, state: &GameState, id: BuildingId, component: u32, rect: TileRect, priority: JobPriority) {
+    fn plan_collection(&mut self, state: &GameState, id: BuildingId, link: &Link, rect: TileRect, priority: JobPriority) {
         let Some(p) = state.buildings.get(id).and_then(|b| b.production.as_ref()) else { return };
         let full = p.status() == ProductionStatus::OutputFull;
         let outputs: Vec<(ResourceId, u32, u32)> =
@@ -186,7 +227,7 @@ impl Planner {
             if collectible == 0 || (collectible < threshold && !full) {
                 continue;
             }
-            if let Some((dest, room)) = self.storage_with_room(state, resource, component, rect) {
+            if let Some((dest, room)) = self.storage_with_room(state, resource, link, rect) {
                 let n = collectible.min(self.capacity).min(room);
                 self.push(TransportKind::Collect, resource, n, id, dest, dest, priority);
             }
@@ -196,7 +237,7 @@ impl Planner {
             if left == 0 {
                 continue;
             }
-            if let Some((dest, room)) = self.storage_with_room(state, resource, component, rect) {
+            if let Some((dest, room)) = self.storage_with_room(state, resource, link, rect) {
                 let n = left.min(self.capacity).min(room);
                 self.push(TransportKind::Return, resource, n, id, dest, dest, priority);
             }
@@ -204,7 +245,7 @@ impl Planner {
     }
 
     /// Supply of a working production building's input buffer (refilled once at most half full).
-    fn plan_supply(&mut self, state: &GameState, id: BuildingId, component: u32, rect: TileRect, priority: JobPriority) {
+    fn plan_supply(&mut self, state: &GameState, id: BuildingId, link: &Link, rect: TileRect, priority: JobPriority) {
         let Some(p) = state.buildings.get(id).and_then(|b| b.production.as_ref()) else { return };
         let needs: Vec<(ResourceId, u32, u32)> =
             p.input().capacities().map(|(r, cap)| (r, cap, p.input().get(r))).collect();
@@ -214,15 +255,20 @@ impl Planner {
                 continue;
             }
             let want = capacity - have;
-            if let Some((src, units)) = self.storage_with_goods(state, resource, component, rect, None) {
-                let n = want.min(self.capacity).min(units);
+            if let Some((src, units)) = self.storage_with_goods(state, resource, link, rect, None) {
+                // Heating comes first: in the heating season fuel only beyond the reserve.
+                let n = self.fuel_limit(resource, want.min(self.capacity).min(units));
+                if n == 0 {
+                    continue;
+                }
+                self.spend_fuel(resource, n);
                 self.push(TransportKind::Supply, resource, n, src, id, src, priority);
             }
         }
     }
 
     /// Stock of a selling building (tavern: beer), refilled once at most half full.
-    fn plan_shop(&mut self, state: &GameState, id: BuildingId, component: u32, rect: TileRect, priority: JobPriority) {
+    fn plan_shop(&mut self, state: &GameState, id: BuildingId, link: &Link, rect: TileRect, priority: JobPriority) {
         let Some(b) = state.buildings.get(id) else { return };
         let needs: Vec<(ResourceId, u32, u32)> = b.inventory().capacities().map(|(r, cap)| (r, cap, b.inventory().get(r))).collect();
         for (resource, capacity, amount) in needs {
@@ -230,7 +276,7 @@ impl Planner {
             if have.saturating_mul(2) > capacity {
                 continue;
             }
-            if let Some((src, units)) = self.storage_with_goods(state, resource, component, rect, None) {
+            if let Some((src, units)) = self.storage_with_goods(state, resource, link, rect, None) {
                 let n = (capacity - have).min(self.capacity).min(units);
                 self.push(TransportKind::Supply, resource, n, src, id, src, priority);
             }
@@ -238,7 +284,7 @@ impl Planner {
     }
 
     /// Material for a construction site or upgrade.
-    fn plan_construction(&mut self, state: &GameState, id: BuildingId, component: u32, rect: TileRect, priority: JobPriority) {
+    fn plan_construction(&mut self, state: &GameState, id: BuildingId, link: &Link, rect: TileRect, priority: JobPriority) {
         let Some(site) = state.buildings.get(id).and_then(|b| b.construction_site()) else { return };
         let owed: Vec<(ResourceId, u32)> = site
             .materials_required()
@@ -249,19 +295,84 @@ impl Planner {
             let mut missing = owed.saturating_sub(self.claims.incoming(id, resource));
             // An upgrading storage is not in the list; its own stock went in first.
             while missing > 0 {
-                let Some((src, units)) = self.storage_with_goods(state, resource, component, rect, Some(id)) else {
+                let Some((src, units)) = self.storage_with_goods(state, resource, link, rect, Some(id)) else {
                     break;
                 };
                 let n = missing.min(self.capacity).min(units);
                 self.push(TransportKind::Construction, resource, n, src, id, src, priority);
                 missing -= n;
             }
+            if missing > 0 {
+                self.plan_restock(state, resource, missing, link, rect, id, priority);
+            }
+        }
+    }
+
+    /// Material a site still needs that no storage in its reach holds: brought to the nearest
+    /// storage that serves the site (and has room) from storages on its road network whose
+    /// carriers reach it – an outpost warehouse at the border is filled from the town
+    /// (`TransportKind::Restock`). What is already on its way there counts.
+    #[allow(clippy::too_many_arguments)]
+    fn plan_restock(
+        &mut self,
+        state: &GameState,
+        resource: ResourceId,
+        missing: u32,
+        link: &Link,
+        rect: TileRect,
+        site: BuildingId,
+        priority: JobPriority,
+    ) {
+        let serves = |s: &StorageSite| {
+            let linked = match link {
+                Link::Road(component) => s.component == *component,
+                Link::Walk(components) => s.walk.is_some_and(|w| components.contains(&w)),
+            };
+            linked && s.id != site && s.rect.distance_to_rect(&rect) <= s.radius
+        };
+        let relay = self
+            .storages
+            .iter()
+            .filter(|s| serves(s))
+            .filter_map(|s| {
+                let room = state.buildings.get(s.id)?.inventory.free_space(resource).saturating_sub(self.claims.incoming(s.id, resource));
+                (room > 0).then_some((s.rect.distance_to_rect(&rect), s.id, s.rect, s.component, room))
+            })
+            .min_by_key(|(d, id, ..)| (*d, *id));
+        let Some((_, relay, relay_rect, relay_component, room)) = relay else { return };
+        let mut need = missing.saturating_sub(self.claims.incoming(relay, resource)).min(room);
+        while need > 0 {
+            let source = self
+                .storages
+                .iter()
+                .filter(|s| {
+                    s.id != relay
+                        && s.id != site
+                        && s.component == relay_component
+                        && s.rect.distance_to_rect(&relay_rect) <= s.radius
+                        && self.backlog.get(&s.id).copied().unwrap_or(0) < s.max_backlog
+                })
+                .filter_map(|s| {
+                    let inv = &state.buildings.get(s.id)?.inventory;
+                    let units = inv.get(resource).saturating_sub(self.claims.outgoing(s.id, resource, SourceBuffer::Storage));
+                    (units > 0).then_some((s.rect.distance_to_rect(&relay_rect), s.id, units))
+                })
+                .min_by_key(|(d, id, _)| (*d, *id));
+            let Some((_, src, units)) = source else { break };
+            let n = need.min(self.capacity).min(units);
+            self.push(TransportKind::Restock, resource, n, src, relay, src, priority);
+            need -= n;
         }
     }
 }
 
 /// One planning pass: appends new waiting jobs to the queue.
 pub(crate) fn plan(state: &mut GameState, defs: &Defs) {
+    // Sites entered from any side are linked by walking: the components must be current.
+    let open_sites = state.buildings.iter().any(|(id, b)| b.construction_site().is_some() && buildings::is_open_sided(state, defs, id));
+    if open_sites {
+        crate::navigation::prepare(state, defs);
+    }
     let storages: Vec<StorageSite> = state
         .buildings
         .iter()
@@ -273,12 +384,29 @@ pub(crate) fn plan(state: &mut GameState, defs: &Defs) {
             let def = defs.buildings().get(b.kind().index())?;
             let radius = i32::from(def.storage.as_ref()?.carrier_radius);
             let max_backlog = BACKLOG_PER_CARRIER * u32::from(b.staffed()).max(1);
-            Some(StorageSite { id, rect: b.rect(), component, radius, max_backlog })
+            let walk = if open_sites { state.navigation.component(b.entrance()) } else { None };
+            Some(StorageSite { id, rect: b.rect(), component, walk, radius, max_backlog })
         })
         .collect();
     if storages.is_empty() {
         return;
     }
+    let heating_pm: Vec<u64> =
+        defs.resources().iter().map(|r| (f64::from(r.heating_value) * 1000.0).round().max(0.0) as u64).collect();
+    // The fuel workshops may get: what the stock (less construction material) holds beyond the
+    // households' heating reserve, less what is already on its way to workshops.
+    let reserve = crate::population::supply::fuel_reserve_milli(state, defs);
+    let fuel_budget = (reserve > 0).then(|| {
+        let available: u64 = defs.resources().iter().map(|r| u64::from(state.economy.available(r.id)) * heating_pm[r.id.index()]).sum();
+        let underway: u64 = state
+            .logistics
+            .jobs()
+            .iter()
+            .filter(|j| j.kind == TransportKind::Supply && j.goods_at_source())
+            .map(|j| u64::from(j.amount) * heating_pm.get(j.resource.index()).copied().unwrap_or(0))
+            .sum();
+        available.saturating_sub(reserve).saturating_sub(underway)
+    });
     let mut planner = Planner {
         storages,
         claims: Claims::default(),
@@ -286,6 +414,8 @@ pub(crate) fn plan(state: &mut GameState, defs: &Defs) {
         capacity: u32::from(defs.rules().carrier_capacity),
         tick: state.clock.tick,
         new_jobs: Vec::new(),
+        fuel_budget,
+        heating_pm,
     };
     for job in state.logistics.jobs() {
         planner.claims.add(job);
@@ -298,21 +428,30 @@ pub(crate) fn plan(state: &mut GameState, defs: &Defs) {
     clients.sort();
     for (Reverse(priority), id) in clients {
         let Some(b) = state.buildings.get(id) else { continue };
-        let Some(component) = roads::building_component(&state.world, &state.roads, &state.buildings, id) else { continue };
+        let link = if open_sites && buildings::is_open_sided(state, defs, id) {
+            let components = buildings::access_components(state, defs, id);
+            if components.is_empty() {
+                continue;
+            }
+            Link::Walk(components)
+        } else {
+            let Some(component) = roads::building_component(&state.world, &state.roads, &state.buildings, id) else { continue };
+            Link::Road(component)
+        };
         let rect = b.rect();
         match b.phase() {
             BuildingPhase::Construction(_) | BuildingPhase::Upgrading(_) if !b.is_paused() => {
-                planner.plan_construction(state, id, component, rect, priority);
+                planner.plan_construction(state, id, &link, rect, priority);
             }
             _ => {}
         }
         if b.is_complete() && b.production.is_some() {
-            planner.plan_collection(state, id, component, rect, priority);
+            planner.plan_collection(state, id, &link, rect, priority);
             if !b.is_paused() {
-                planner.plan_supply(state, id, component, rect, priority);
+                planner.plan_supply(state, id, &link, rect, priority);
             }
         } else if b.is_complete() && !b.is_paused() && defs.buildings().get(b.kind().index()).is_some_and(|d| !d.sells.is_empty()) {
-            planner.plan_shop(state, id, component, rect, priority);
+            planner.plan_shop(state, id, &link, rect, priority);
         }
     }
     for job in planner.new_jobs {

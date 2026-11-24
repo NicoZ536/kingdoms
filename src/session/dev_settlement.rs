@@ -606,6 +606,8 @@ mod town_tests {
     use std::sync::Arc;
 
     use kingdoms_sim::agriculture::FarmKind;
+    use kingdoms_sim::buildings::BuildingId;
+    use kingdoms_sim::event::NotificationKind;
     use kingdoms_sim::population::DeathCause;
     use kingdoms_sim::state::GameSettings;
     use kingdoms_sim::time::TICKS_PER_DAY;
@@ -625,6 +627,9 @@ mod town_tests {
     /// Two whole years (24 days each) and the first day of the third spring.
     const DAYS: u64 = 49;
 
+    /// What a waiting-state notification is about: its kind and building, else its tile.
+    type WaitingSubject = (NotificationKind, Option<BuildingId>, Option<(i32, i32)>);
+
     /// The town of `KINGDOMS_DEV_SETTLEMENT=2` over two years: it grows, nobody starves or
     /// freezes, and it farms vegetables, wheat and fruit. Workers and carriers walk, so the
     /// first year brings the basics, woodcutters and the orchard; the wheat farm, quarry,
@@ -642,6 +647,8 @@ mod town_tests {
         let mut cursor = session.events().cursor_at_end();
         let mut deaths = Vec::new();
         let mut rejected = 0;
+        // Per subject of a waiting state (kind and building, else tile): when it was reported.
+        let mut waiting: BTreeMap<WaitingSubject, Vec<u64>> = BTreeMap::new();
         for _ in 0..DAYS * TICKS_PER_DAY {
             session.tick();
             let read = session.events().read(&mut cursor);
@@ -649,6 +656,10 @@ mod town_tests {
                 match &e.event {
                     SimEvent::CitizenDied { cause, .. } => deaths.push(*cause),
                     SimEvent::CommandRejected { .. } => rejected += 1,
+                    SimEvent::Notification(n) if n.kind.is_waiting_state() => {
+                        let tile = if n.building.is_some() { None } else { n.position.map(|p| (p.x, p.y)) };
+                        waiting.entry((n.kind, n.building, tile)).or_default().push(e.tick);
+                    }
                     _ => {}
                 }
             }
@@ -691,6 +702,12 @@ mod town_tests {
         let fields = state.agriculture().farms().filter(|(_, f)| f.kind() == FarmKind::Fields && !f.tiles().is_empty()).count();
         assert!(fields >= 3, "vegetable, wheat and fruit farms have fields");
         assert_eq!(rejected, 0, "the simulation accepted every command");
+        // A waiting state is told once per spell: again only after it has been over for
+        // `waiting_resolved_hours` (no repeating notices over two years).
+        let gap = u64::from(defs.rules().notices.waiting_resolved_hours) * TICKS_PER_HOUR;
+        for (subject, ticks) in &waiting {
+            assert!(ticks.windows(2).all(|w| w[1] - w[0] > gap), "{subject:?} reported again within a spell: {ticks:?}");
+        }
         assert!(state.economy().treasury() > 0);
     }
 }

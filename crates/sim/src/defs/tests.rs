@@ -672,3 +672,29 @@ fn missing_files_and_directories_are_reported() {
     assert!(err.problems().iter().any(|p| p.message.contains("unrecognized")), "{err}");
     assert!(matches!(Defs::load(Path::new("/nonexistent/kingdoms/data")), Err(DefsError::MissingDirectory(_))));
 }
+
+#[test]
+fn access_any_side_needs_a_single_tile_and_survives_upgrades() {
+    let d = defs();
+    for key in ["wall", "gate", "watchtower", "stone_tower"] {
+        assert_eq!(d.building(d.building_id(key).unwrap()).access, Access::AnySide, "{key}");
+    }
+    assert_eq!(d.building(d.building_id("house_wood").unwrap()).access, Access::Entrance);
+    // A 2×2 house entered from any side is refused.
+    let err = load_err(&edited(
+        "buildings/buildings.ron",
+        r#"id: "house_wood", name: "Einfaches Holzhaus", category: Housing, size: (2, 2),"#,
+        r#"id: "house_wood", name: "Einfaches Holzhaus", category: Housing, size: (2, 2), access: AnySide,"#,
+    ));
+    assert_problem(&err, "buildings/buildings.ron", "building 'house_wood'", "AnySide");
+    // The stone tower must keep the access of the watchtower it is built from.
+    let err = load_err(&edited(
+        "buildings/buildings.ron",
+        r#"material: Stone, buildable: false, access: AnySide,"#,
+        r#"material: Stone, buildable: false,"#,
+    ));
+    assert!(err.to_string().contains("needs the same access"), "{err}");
+    // The notice thresholds must be positive.
+    let err = load_err(&edited("rules.ron", "waiting_resolved_hours: 24", "waiting_resolved_hours: 0"));
+    assert!(err.to_string().contains("waiting_resolved_hours"), "{err}");
+}

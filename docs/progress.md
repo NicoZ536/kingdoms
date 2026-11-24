@@ -3,6 +3,472 @@
 Dieses Dokument hält den Arbeitsstand fest (was fertig ist, wie es geprüft wurde, was offen ist).
 Neueste Einträge oben.
 
+## 2026-11-24 · Abschlussprüfung nach Polish-Runde 11: Prüfläufe, Bilder, Audio-Lieferliste (`docs/`, `README.md`)
+
+**Fertig**
+* **Bilder** (`docs/screenshots/`, Release-Build, 1600 × 900, Xvfb mit lavapipe): 01, 04–11, 13
+  und 15–17 neu aufgenommen. Der Xvfb-Bildschirm ist 1600 × 1000, das Spielfenster 1600 × 900;
+  XTest führt den Mauszeiger einmal ins Fenster und unten wieder hinaus, sodass das Spiel keinen
+  Zeiger kennt (kein Hover, kein Tooltip auf der Karte).
+  * Die Meldungskarten tragen jetzt die Art als Überschrift („Diplomatie“, „Ereignis“,
+    „Bevölkerung“, „Bedrohung“, „Militär“, „Bau“, „Handel“, „Wetter“, „Landwirtschaft“,
+    „Forschung“, „Brennstoffmangel“) statt der Schwere.
+  * **09** zeigt statt der Feldschlacht den geschlossenen Mauerring unter Angriff (Seed 31 klein,
+    `KINGDOMS_DEV_ARMY=10 KINGDOMS_DEV_WALLS=8 KINGDOMS_WARP_TICKS=19200
+    KINGDOMS_DEV_THREAT=1:30 KINGDOMS_FOCUS=feind KINGDOMS_ZOOM=1.2 KINGDOMS_SPEED=2
+    KINGDOMS_FIXED_DT=0.05`, Frame 600): Das Heer von Hohenmark hat ein Tor durchbrochen, das Tor
+    brennt, Verteidiger kämpfen davor, oben „Die Feinde haben das Tor durchbrochen!“. Weil 09 den
+    Ring zeigt, gibt es kein eigenes Bild 18.
+  * **01 und 15** zeigen drei Spielstände im Format 18: „Grenzwacht“ (Seed 23) und „Mein Reich –
+    Frühling Jahr 1“ (Seed 12345), beide per XTest über den Speichern-Dialog angelegt, dazu der
+    Schnellspielstand der Entwickler-Stadt (Sommer · Tag 3 · Jahr 2, 12:00).
+  * **16** stammt jetzt aus dem Release-Build (in Runde 11 war es der Debug-Build); 06, 08 und 16
+    aus demselben neuen Schnellspielstand.
+  * **05 und 17** mit `KINGDOMS_FIXED_DT=0.05` reproduzierbar: 05 nach knapp 15 h Schneefall
+    (`KINGDOMS_WARP_TICKS=201600`, 4×, Frame 740, 20:48 Uhr), 17 nach 16 h (`204000`, 4×,
+    Frame 800, Winter · Tag 2 · Jahr 2, 10:00 Uhr).
+  * Geblieben sind 02, 03, 12 und 14 (Release-Build, Runde 10): Sie zeigen keine Meldungskarten,
+    und ihre Oberfläche hat sich seither nicht geändert.
+  * Alle 17 Bilder sind RGB und verlustfrei gespeichert (pixelgleich mit der Aufnahme geprüft).
+* **README:** Bilder-Tabelle angepasst (04: Meldungskarten mit Art; 09 heißt „Kampf am
+  Mauerring“). Drei veraltete Angaben zu den Meldungen berichtigt: Ein Klick auf eine Meldung
+  wählt ihr Gebäude aus, solange es steht, sonst springt die Kamera zum Ort (vorher stand nur
+  „Kamera springt zum Ort der Meldung“); die Liste „Meldungen“ hat die Auswahl „Art“; die
+  Kartenüberschrift ist die Art (bei allgemeinen Meldungen die Schwere).
+* **Roadmap:** neue ✅-Zeile für diese Prüfung; die Zeile der Abschlussprüfung nach Runde 10
+  verweist beim Langzeitlauf auf die Behebung in Runde 11. Die ⬜-Zeilen (Rückmeldungen vom Mac,
+  Audiodateien, finale Grafik) warten auf Lieferungen von außen, Phase 8 bleibt 🔶.
+* **Audio-Lieferliste:** nicht neu geschrieben – `assets/audio/manifest.ron` ist seit Runde 9
+  unverändert, die frisch erzeugte Liste ist mit `assets/audio/delivery.json` und der Kopie für
+  den Auftraggeber im Scratch-Verzeichnis (`audio_delivery.json`) bytegleich.
+
+**Geprüft**
+* `cargo build --release`: ohne Warnungen (4 min 14 s).
+* `cargo test --workspace`: alles grün (59 s).
+  * Spiel 249 (darunter `sound::tests::the_delivery_list_matches_the_manifest`), Assetgen 69,
+    Engine 74.
+  * Sim 421 (+ 9 ignorierte), Kampagne 8 (+ 2 ignorierte), Determinismus 13, Fuzz 7,
+    vernünftiger Spieler 2.
+  * Doctests: Engine 0, Sim 1.
+* `cargo clippy --workspace --all-targets -- -D warnings` sauber (Cargo hat das Ergebnis des
+  letzten Laufs wiederverwendet; die Quellen waren seitdem unverändert).
+  `RUSTDOCFLAGS='-D warnings' cargo doc -p kingdoms_sim -p kingdoms_engine --no-deps` sauber.
+* Atlanten und App-Symbol mit `cargo run -p kingdoms_assetgen --release -- <scratch>/agen` neu
+  erzeugt: alle 24 Dateien in `assets/atlases` und `assets/app_icon.png` sind bytegleich.
+* Keine Treffer für `TODO`, `FIXME`, `todo!(`, `unimplemented!(` oder `dbg!(` in `crates/`, `src/`
+  und `tools/`.
+* Langzeitläufe `cargo test --release -p kingdoms_sim --test campaign -- --ignored --nocapture`:
+  beide grün (Testzeit 12 min 36 s, parallel zu den Bildaufnahmen).
+  * Acht Jahre, vorausschauender Spieler – alle drei Karten werden Großstadt, niemand verhungert
+    oder erfriert: Seed 7 12 → 375 Einwohner (Stadt Tag 77, Großstadt Tag 106), Seed 23 12 → 317
+    (Tag 74 bzw. 132), Seed 31 12 → 374 (Tag 70 bzw. 88). Zum Königreich fehlt überall die Burg,
+    Seed 23 und 31 auch Gebiet (3 006 bzw. 3 035 von 3 500), Seed 23 Einwohner (317 von 350).
+    Genau die Werte der Sim-Lane und von game_design §1.
+  * Ehrgeiziger Spieler, weitere Seeds (drei Jahre): Seed 11 Stadt an Tag 61 (103 Einwohner),
+    Seed 31 an Tag 58 (143), Seed 42 an Tag 55 (141).
+* Audio: `validate_audio_list.py` bestätigt `assets/audio/delivery.json` gegen Manifest und
+  Audio-Bericht (143 IDs: 15 Musik, 128 Klänge; 146 Dateien). `kingdoms --audio-report`: 0 von
+  146 Dateien gefunden, Rückgabewert 1 wie vorgesehen.
+* Alle 35 `KINGDOMS_*`-Variablen aus `src/` und `crates/engine` stehen im README (neu seit der
+  letzten Abschlussprüfung: `KINGDOMS_DEV_CASE`); `KINGDOMS_BALANCE_SEED` ist ein Test-Schalter
+  der Simulation.
+* Alle 17 Bilder einzeln angesehen. Die Logs der Läufe enthalten kein ERROR und kein panic; die
+  einzige Warnung ist `KINGDOMS_DEV_RESEARCH: unknown technology 'masonry'` aus dem Rezept von
+  Bild 07 (schon in Runde 10 so; das Bild zeigt die beiden gültigen Einträge).
+* `target/` belegt 35 GB (`debug` 33 GB, `release` 1,6 GB, `doc` 68 MB). Diese Prüfung hat
+  keinen `target`-Ordner im Scratch-Verzeichnis angelegt, dort liegt auch keiner mehr.
+
+**Offen**
+* **Lieferungen von außen:** Grafik (alles erzeugte Platzhalter), Audio (keine Dateien, nie
+  gehört; der Bericht misst nur den Spitzenpegel, nicht die Lautheit), macOS und Windows (weder
+  gebaut noch gestartet).
+* **Königreich** erreicht in acht Jahren keine Karte (überall fehlt die Burg) – gewollt, siehe
+  game_design §1. Die Bewertung „umsichtiger Spieler“ beruht auf Skript-Spielern.
+* **Alte Spielstände:** Format 17 und älter werden abgelehnt (keine Umwandlung).
+* Karten der Arten „Rohstoffmangel“ und „Brennstoffmangel“ nennen die Art zweimal (Überschrift
+  „Brennstoffmangel“, Text „Brennstoffmangel: Familie Bauer friert – …“, Bild 05). Doppelt, nicht
+  falsch; der Text kommt aus der Simulation und steht auch in der Liste.
+* Die Entwickler-Stadt gerät im Winter des zweiten Jahres in Brennstoffmangel (Bild 05); sie ist
+  ein Skript, kein Balance-Testspieler.
+* Bild 12 zeigt noch den Schnellspielstand aus Runde 10 (Format 17); das Bürgerfenster selbst ist
+  unverändert. Die Bilder der Entwickler-Fälle (`KINGDOMS_DEV_CASE`) liegen nur im
+  Scratch-Verzeichnis und lassen sich jederzeit neu erzeugen.
+* Weiter offen aus der Prüfung Runde 11: `KINGDOMS_DEV_UNLOCK=1` mit `KINGDOMS_SPEED=pause` ohne
+  Warp-Ticks; der Platzierungs-Tooltip kann bei Bauplätzen weit unten die untere Leiste
+  verdecken; ein Klick auf eine Meldungskarte stellt das Gebäude in die Bildmitte, wo es teils
+  hinter Karten und Info-Fenster liegt; die Breite der Liste „Meldungen“ schwankt um wenige
+  Punkte; gleiche Nachrichten einer Art werden über den Wortlaut zusammengefasst (bewusster
+  Duplikat-Test, z. B. „Fertiggestellt: Stadtmauer ×60“).
+
+## 2026-11-24 · Prüfung Runde 11 und Regressionslauf (`src/`, `crates/sim`, Doku)
+
+**Fertig**
+* **Plünder-Meldungen grammatisch** (`military::threats::plunder_text`, `arson_text`): „Räuber
+  plündern Rathaus“ fehlte der Artikel, beim Heer stand das Verb im Plural („Das Heer von
+  Hohenmark plündert Rathaus, finden aber nichts“). Jetzt wie die übrigen Meldungen „… plündert das
+  Gebäude „Rathaus“: …“, „… findet aber nichts.“ bzw. „Räuber … finden …“ und „Die Plünderer haben
+  das Gebäude „Rathaus“ angezündet!“.
+* **Einheitliche Anrede „Ihr“:** Acht Spieltexte sprachen den Spieler mit „du“ an, alle übrigen
+  (Simulation, Militär, Diplomatie) mit „Ihr“. Jetzt „Ihr habt“ in den Baukosten, „Wählt unten eine
+  Ware und legt fest …“ (Handel), „Wählt eine Technologie … und reiht sie ein“ (Forschung),
+  „Willkommen in Eurem neuen Reich!“, „… wenn Ihr ohne Speichern geht.“, Ladetipps („öffnet Ihr“,
+  „zieht Ihr“), „gebt oben einen Namen ein“ (Speichern) und „Klickt auf eine Taste …“ (Steuerung).
+* **Baukosten im Tooltip ohne Überlappung** (`build_menu::cost_line`): Bei fehlenden Waren brach
+  die Kostenzeile („2000 (Ihr habt 500) …“) in der Tooltip-Tabelle mitten im Text um und lief über
+  die Zeilen „Bauzeit“ und „Arbeiter“. Ursache: Eine umbrechende Zeile in einer egui-Tabellenzelle
+  beginnt in der senkrechten Mitte der Zelle (Höhe des Vorbilds). Die Kostenzeile steht jetzt in
+  einem oben ausgerichteten Block, Symbol und Menge bleiben zusammen und rücken als Ganzes in die
+  nächste Zeile.
+* **Reiter Militär, Bedrohungen:** Die Zusammensetzung eines gemischten Heers („20 Kämpfer · 6
+  Milizen, 5 Schwertkämpfer, 5 Speerträger, 4 Bogenschützen“) endete in „5 S…“; die Spalte bricht
+  jetzt um, die Zeile wird so hoch wie nötig.
+* **Regressionstest Wartezustände:** `town_grows_through_two_years` (Entwicklerstadt über zwei
+  Jahre) prüft jetzt zusätzlich, dass jeder Wartezustand je Gegenstand (Art und Gebäude, sonst Feld)
+  nur einmal je Episode gemeldet wird – erneut erst nach `waiting_resolved_hours`.
+
+**Geprüft**
+* Runde 11 mit Belegen (Debug-Build, Xvfb + lavapipe, 1600 × 900, alle Bilder angesehen; in keinem
+  Log `panicked`, `ERROR` oder unerwartete `WARN`):
+  * **„Später“ und automatische Pause** (Einstellung „Wenn ein Ereignis eine Entscheidung
+    verlangt“, Entwicklerstadt Seed 7, `KINGDOMS_WARP_TICKS=58300`, Tempo 2× bzw. 4×; per XTest):
+    „Später“ auf der Anfragekarte → das Spiel läuft im alten Tempo weiter; Esc auf der Karte →
+    ebenso; „Zum Reich“ → Reiter Diplomatie, das Spiel bleibt angehalten; Antwort im Reiter → es läuft
+    weiter.
+  * **Folgekamera** (`KINGDOMS_DEV_THREAT=banditen KINGDOMS_FOCUS=feind`, Frames 60 und 75): die
+    Beschriftung „Räuberbande (12) · …“ sitzt in beiden Bildern über der Gruppe.
+  * **Entwickler-Fälle:** `gasthaus` (Ausschank, Bier 12/12, Gäste unterwegs), `einarbeitung`
+    („Einarbeitung 80 % (in der Belegschaft enthalten)“), `lagerferne` (bernsteinfarbener Geist,
+    „Kein Lager erreicht diesen Bauplatz“ zuerst, Tooltip neben der Grundfläche).
+  * **Spalten ohne Blocksatz:** Bevölkerung, Finanzen, Wirtschaft, Landwirtschaft und Diplomatie
+    zu Spielbeginn und in der Entwicklerstadt; keine gedehnten Wortabstände.
+  * **Mauerring** (Seed 31 klein, `KINGDOMS_DEV_WALLS=8 KINGDOMS_DEV_THREAT=1:30`): 64 Stücke samt
+    Ecken, vier Tore; das Heer greift ein Tor an, „Die Feinde haben das Tor durchbrochen!“, plündert
+    das Rathaus (neuer Text im Bild) und flieht.
+  * **Meldungen nach Art:** Überschriften nach Art („Bau“, „Keine Rohstoffe im Umkreis“,
+    „Bedrohung“ …), „×2“ bei gleicher Nachricht, Auswahl „Art“ mit Anzahl; Klick auf die Karte
+    „Holzfällerhütte: keine Rohstoffe im Umkreis.“ wählt die Hütte aus (Info-Fenster, Kamera dort).
+  * **Wartezustände über zwei Jahre:** Entwicklerstadt Seed 7 (49 Tage) mit protokollierten
+    Meldungen: kein Gegenstand wurde innerhalb einer Episode erneut gemeldet (kürzester Abstand
+    47 h, Köhlerei „fehlt Holz“; Förster „dichter Wald“ höchstens viermal in zwei Jahren). Jetzt
+    als Test (siehe oben).
+  * **Balance:** `LONG_SEEDS=7 cargo test -p kingdoms_sim --test campaign
+    expansive_player_grows_beyond_the_town_in_eight_years -- --ignored`: 12 → 375 Einwohner,
+    Großstadt an Tag 106 (Stadt 77), keine Hunger- oder Kältetoten – wie im Eintrag der Sim-Lane.
+* **Regressionslauf als Spieler per XTest:** Hauptmenü → Neues Spiel (Seed 7, klein) → Holzhaus und
+  Holzfällerhütte gebaut → alle zwölf Reiter der Reichsverwaltung (auch heruntergescrollt) und die
+  vier Seitenfenster → Pausenmenü → Speichern („Mein Reich – Frühling Jahr 1“) → Hauptmenü
+  „Fortsetzen“ lädt ihn, die Liste „Meldungen“ enthält beide Meldungen mit Art „Bau“ → Laden … →
+  Einstellungen (Audio, Grafik, Spiel, Steuerung) → Hauptmenü mit Rückfrage „Zum Hauptmenü?“ →
+  „Ohne Speichern verlassen“ führt ins Hauptmenü. Dazu Winter (Schneefall, Reiter Landwirtschaft),
+  Krieg (Räuber im Anmarsch, Heer von Weidenthal im Reiter Militär), Handel (fremde Karawanen,
+  Bilanz), Ereignis „Brand“, Ausbau zu Großen Sägewerken und die Entwicklerstadt nach zwei Jahren.
+  Ohne Befund: Bau-Werkzeug mit Zufahrt, Info-Fenster, Speichern/Laden, Einstellungen, Rückfragen,
+  Übersicht, Aufgaben, Diplomatie, Handel, Forschung, Statistik.
+* Neue Tests: `military::tests::plunder_texts_are_grammatical_for_bandits_and_armies`;
+  `town_grows_through_two_years` mit Prüfung der Wartezustände. Bilder nach den Änderungen: Burg-
+  Tooltip mit vier fehlenden Waren (je eine Zeile, nichts überlappt), Bogenschützenposten (eine
+  Zeile), Platzierungs-Tooltip, Reiter Militär mit umbrochener Zusammensetzung, Hinweis im Reiter
+  Handel.
+* `cargo test --workspace`: Spiel 249, Assetgen 69, Engine 74, Sim 421 (+ 9 ignorierte), Kampagne 8
+  (+ 2 ignorierte), Determinismus 13, Fuzz 7, vernünftiger Spieler 2, Doctest 1 – grün.
+  `cargo clippy --workspace --all-targets -- -D warnings` sauber;
+  `RUSTDOCFLAGS='-D warnings' cargo doc -p kingdoms_sim --no-deps` sauber.
+
+**Offen**
+* `KINGDOMS_DEV_UNLOCK=1` mit `KINGDOMS_SPEED=pause` und ohne Warp-Ticks: Die Freischaltung wartet
+  auf den ersten Tick, die Tooltips nennen bis dahin noch die fehlende Forschung (nur
+  Entwickler-Variable; mit Warp-Ticks oder laufendem Spiel wie beschrieben).
+* Der Platzierungs-Tooltip neben der Grundfläche kann bei Bauplätzen weit unten die untere Leiste
+  (Tempo, Uhr) verdecken, solange der Zeiger dort steht.
+* Weiter offen wie zuvor: Bilder in `docs/screenshots/` zeigen auf den Meldungskarten noch die
+  Schwere statt der Art; Lieferungen von außen (Grafik, Audio, macOS); Königreich in acht Jahren;
+  alte Spielstände (Format 17 wird abgelehnt).
+
+## 2026-11-24 · Zusammenführung Schritt 11: Meldungen nach Art und Gebäude, geschlossener Mauerring, Brennstoff (`src/`, `crates/sim`, `data/`, Doku)
+
+**Fertig**
+* **Zusammenführung:** `crates/sim` und `data/` der Sim-Lane Runde 11 per `sync.sh to-main`
+  übernommen (die Spiel-Lane hatte beide nicht berührt; Sicherung von `crates/sim`, `data/`,
+  `Cargo.lock` und `docs/` im Scratch-Verzeichnis `merge11/backup`). Doku von Hand: game_design
+  ganz aus der Lane (das Spiel hatte die Datei nicht geändert), architecture §3 (Modultabelle,
+  Format 18) neben den Spiel-Abschnitten aus Runde 11, Roadmap-Zeile und Eintrag der Sim-Lane.
+  Das Spiel kompilierte ohne Anpassung.
+* **Meldungen nach Art und Gebäude statt nach Text** (`hud::feed`, `Notification::kind`,
+  `Notification::building`): Die Tagesdrosselung nach „Text und Ort“ und das Zusammenfassen
+  nach gleichem Text sind ersetzt.
+  * Ein **Zustand** (Wartezustand nach `is_waiting_state`, dazu „Kein Lagerplatz“) gehört zu
+    seinem Gegenstand: Art und Gebäude, sonst Kartenfeld, sonst das ganze Reich. Eine neue
+    Meldung dazu ersetzt Karte und Listeneintrag mit neuestem Text („Dem Sägewerk fehlt Holz“ →
+    „… Holz und Stein“, „×2“). Am selben Kalendertag springt sie nicht erneut auf, sondern
+    aktualisiert Karte und Liste still (früher fiel sie ganz weg). Gefahren springen immer auf.
+  * Alles andere ist eine **Nachricht**. Nur dieselbe Nachricht noch einmal (gleiche Art und
+    gleicher Wortlaut) zählt auf einer Karte, z. B. „Fertiggestellt: Stadtmauer ×60“.
+  * Die Kartenüberschrift nennt die Art („Bau“, „Rohstoffmangel“, „Bedrohung“ …), bei
+    „Allgemein“ die Schwere; die Schwere steht im Tooltip und bleibt die Farbe.
+  * **Klick → Gebäude:** Steht das Gebäude der Meldung noch, wird es ausgewählt und die Kamera
+    fährt hin (`HudAction::SelectBuilding`), sonst springt die Kamera zum Ort. Der Tooltip sagt,
+    was der Klick tut.
+  * **Liste „Meldungen“:** neue Auswahl „Art“ mit „Alle Arten“ und jeder Art der Liste samt
+    Anzahl („Bevölkerung (14)“). Art und Gebäude stehen in der gespeicherten Liste
+    (`SavedNotification`, ältere Listen lesen sich als „Allgemein“).
+* **Mauer, Tor und Türme ohne Straße:**
+  * Das Info-Fenster nennt „kein Straßenanschluss“ nur bei Gebäuden mit
+    `BuildingDef::needs_road()`.
+  * Das Bauwerkzeug schlägt für sie keine Zufahrt mehr vor und sendet ein schlichtes
+    `PlaceBuilding`.
+* **`KINGDOMS_DEV_WALLS` baut einen geschlossenen Ring** samt der vier Ecken, ohne Straßenring
+  und Stichstraße. Danach kommen Tore auf Straßenkreuzungen (nie in einer Ecke) und in die Mitte
+  jeder Seite; ist die Mitte abgelehnt (Wasser, Gebäude), bekommt das nächste stehende
+  Mauerstück der Seite das Tor. README-Zeile angepasst.
+* **Brennstoff zum Heizen** (`report::fuel_forecast`):
+  * Reiter Landwirtschaft: neue Karte unter dem Nahrungsvorrat. Die Zusammenfassung ist rot,
+    wenn das Brennholz knapp ist, und grün in der Heizzeit. Dazu Holz und Kohle im Lager,
+    Heizbedarf je Tag, Heizzeit, Heizvorrat der Häuser und die Regel „Heizen geht vor“ mit
+    `fuel_reserve_days` aus den Daten.
+  * Übersicht: „Das Brennholz reicht nur noch für etwa 2 Tage“ bzw. „… keinen Tag mehr – die
+    Häuser frieren“, führt zum Reiter Landwirtschaft.
+* Neue Sim-Texte im Spiel:
+  * „Das Gebäude würde einen Bewohner einschließen.“ (`PlacementError::TrapsCitizen`) zeigt der
+    Platzierungs-Tooltip wie jeden anderen Fehler.
+  * „Brennholz wird knapp …“ und „Der Winter naht …“ kommen als Meldungen der Art
+    „Brennstoffmangel“.
+  * Nachschub-Fahrten führt das Spiel nicht nach Art auf; ein eigener Eintrag war nicht nötig.
+* Doku: architecture §4 (Feed, Meldungsliste, Übersicht, Landwirtschaft, Werkzeug,
+  Info-Fenster, `dev_walls`), README (`KINGDOMS_DEV_WALLS`), Roadmap.
+
+**Geprüft**
+* Neue Tests:
+  * `feed`: Zustand nach Gegenstand gedrosselt, stilles Aktualisieren, gleicher Gegenstand
+    rückt nach oben (auch reichsweit), gleiche Nachricht über mehrere Gebäude führt zum neuesten,
+    Klick zum Gebäude bzw. Ort (abgerissenes Gebäude), Arten der Liste, Speichern mit Art und
+    Gebäude sowie alte Liste ohne beides.
+  * `dev_walls`: Ring geschlossen (jedes Stück zwei Nachbarn, Ecken zeigen auf Mauer), Tore nie
+    in Ecken, Ersatz für eine abgelehnte Mitte.
+  * `tools::tests::wall_pieces_get_no_access_road`.
+  * `agriculture::tests::the_fuel_card_warns_in_the_heating_season`.
+  * `overview::tests::short_fuel_is_a_threat_in_the_heating_season`.
+* `cargo test --workspace`: alles grün.
+  * Spiel 249 (+7), Assetgen 69, Engine 74.
+  * Sim 420 (+ 9 ignorierte), Kampagne 8 (+ 2 ignorierte).
+  * Determinismus 13, Fuzz 7, vernünftiger Spieler 2, Doctest 1.
+* `cargo clippy --workspace --all-targets -- -D warnings` sauber;
+  `RUSTDOCFLAGS='-D warnings' cargo doc -p kingdoms_sim --no-deps` sauber.
+* Bilder angesehen (Debug-Build, Xvfb + lavapipe, 1600 × 900; in keinem Log `panicked` oder
+  `ERROR`):
+  * Hauptmenü und Direktstart.
+  * Entwicklerstadt Sommer Jahr 1 (Seed 7, `KINGDOMS_WARP_TICKS=38400`) mit offener Liste
+    „Meldungen“. Per XTest die Auswahl „Art“ geöffnet (acht Arten mit Anzahl) und
+    „Bevölkerung (14)“ gewählt: nur noch Bevölkerungsmeldungen.
+  * Entwicklerstadt Winter Jahr 2 (`KINGDOMS_WARP_TICKS=218400`), Reiter Landwirtschaft: Karte
+    „Brennstoff zum Heizen“ rot („etwa einen Tag (Bedarf 67 je Tag)“, Lager 110, Heizvorrat
+    133). Per XTest heruntergescrollt, dann eine Karte „Holzfällerhütte: keine Rohstoffe im
+    Umkreis.“ geklickt: Info-Fenster dieser Hütte offen, Kamera dort.
+  * Mauerring Seed 31 (`KINGDOMS_WORLD_SIZE=small KINGDOMS_DEV_ARMY=10 KINGDOMS_DEV_WALLS=8
+    KINGDOMS_WARP_TICKS=19200`): 64 Stücke, kein abgelehntes, alle vier Ecken geschlossen, vier
+    Tore. Die Karten zeigen „Fertiggestellt: Stadtmauer ×60“ und „Fertiggestellt: Tor ×4“. Eine
+    ausgewählte Ecke zeigt „In Betrieb“ ohne „kein Straßenanschluss“.
+  * Dazu `KINGDOMS_DEV_THREAT=1:30 KINGDOMS_FOCUS=feind`, 2×:
+    * 10:25 Uhr marschiert das Heer heran.
+    * 11:14 Uhr greifen die 30 Soldaten ein Tor an, das Tor brennt, der Ring ist sonst zu.
+    * Ab 12:00 Uhr „Die Feinde haben das Tor durchbrochen!“; das Heer plündert das Rathaus und
+      flieht.
+  * Seed 7 klein: Der Fluss kreuzt den Ring bei jedem Radius (6–10), dort wird kein Stück
+    gebaut. Das Tor der Ostseite rückt laut Log auf das nächste Stück (z. B. `[63, 33]` statt
+    `[63, 32]`).
+* `sync.sh from-main` (Lane gleich Haupt-Arbeitsbereich in `crates/sim`, `data/`, `docs/`),
+  danach in der Lane `cargo test -p kingdoms_sim`: Bibliothek 420 (+ 9 ignorierte), Kampagne 8
+  (+ 2 ignorierte), Determinismus 13, Fuzz 7, vernünftiger Spieler 2, Doctest 1 – grün.
+
+**Offen**
+* Die Bilder in `docs/screenshots/` zeigen auf den Meldungskarten noch die Schwere („Warnung“)
+  als Überschrift, nicht die Art; neu aufgenommen wurden sie in diesem Schritt nicht.
+* Die Liste „Meldungen“ ist je nach Inhalt einige Punkte breiter oder schmaler; Karten ohne Link
+  sind etwas breiter. Das gab es schon vor diesem Schritt.
+* Entwicklerstadt Seed 7 im Winter von Jahr 2: Brennholz für etwa einen Tag, eine Familie friert
+  („Brennstoffmangel: Familie Wolff friert“). Die Entwicklerstadt ist ein Skript, kein
+  Testspieler der Balance; die Ursache ist nicht untersucht.
+* Weiter offen wie zuvor: Lieferungen von außen (Grafik, Audio, macOS), Balance über acht Jahre
+  hinaus (Königreich), alte Spielstände (Format 17 wird abgelehnt).
+
+## 2026-11-24 · Spiel-Feinschliff Runde 11: automatische Pause, Folgekamera, Entwickler-Fälle, Blocksatz (`src/`, Doku)
+
+**Fertig**
+* **„Später“ setzt die automatische Pause fort** (Befund bestätigt): Die Weltszene merkte sich nur
+  das Tempo vor einer Pause für ein Ereignis; „Später“ auf der Anfragekarte gab es nicht frei.
+  Neues Modul `scenes::auto_pause`: `PauseReason::of` (Ereignis, Anfrage, Gefahr) und `AutoPause`
+  mit dem Tempo davor und den offenen Gründen.
+  * Die Entscheidung des Ereignisses, „Später“, × oder Esc auf der Anfragekarte
+    (`HudAction::ProposalPostponed`, `Hud::close_panel` meldet `Closed::ProposalCard`) und eine
+    Antwort, nach der die Karte zugeht, geben ihren Grund frei. Erst ohne offenen Grund läuft das
+    alte Tempo weiter.
+  * Eine offene Ereignis-Entscheidung hält die Pause; „Später entscheiden“ im Ereignisdialog
+    ändert daran nichts. Eine Gefahrenmeldung hält sie, bis der Spieler das Tempo selbst ändert.
+  * Eine Pause des Spielers bleibt seine: Jede Tempowahl, ein Laden und die Niederlage beenden
+    die automatische Pause. „Zum Reich“ schließt die Karte, ohne die Anfrage freizugeben; die
+    Antwort im Reiter Diplomatie gibt sie frei.
+  * `pause_reason` liegt jetzt in `auto_pause`, `resume_after_decision` ist ersetzt.
+* **Folgekamera vor dem HUD** (bestätigt): Die Kamera folgte erst in `render`, nach dem HUD.
+  `WorldScene::follow_camera` läuft jetzt am Anfang von `ui` (die Ticks des Frames sind gelaufen)
+  für den verfolgten Bürger und für `KINGDOMS_FOCUS=feind|karawane`. Die Feindgruppe wird an
+  ihrer interpolierten Stelle verfolgt (`citizens::walker_world_position`), und die Beschriftung
+  über der Gruppe nutzt dieselbe Stelle (`HudInput::alpha`).
+* **Entwickler-Fälle `KINGDOMS_DEV_CASE=gasthaus|einarbeitung|lagerferne`** (`session::dev_case`,
+  nur Kommandos und Entwicklergaben): Das Spiel läuft nach den Warp-Ticks, bis der Zustand
+  erreicht ist (höchstens 4 Tage). Danach übernimmt die Weltszene Kamera, Auswahl, Werkzeug und
+  Zeiger-Tile aus `Session::dev_view`, soweit `KINGDOMS_FOCUS`/`SELECT`/`TOOL`/`CURSOR` nichts
+  anderes sagen. Gebäude stehen vor dem Rathaus (zum Betrachter hin), damit es sie nicht verdeckt.
+  * `gasthaus`: Seed 7 hält an Tag 1 um 19:02. Das Info-Fenster zeigt „Ausschank“ mit Bier 12/12,
+    drei Gäste sind unterwegs. Um 20:18 sind es noch 6/12 Bier, die Fenster leuchten; nach 21 Uhr
+    ist das Haus wieder dunkel.
+  * `einarbeitung`: Halt um 10:41 mit dem Sägewerk ausgewählt. Die Zeilen lauten „Belegschaft
+    40 % (1 vor Ort, 2 von 2 besetzt)“ und „Einarbeitung 80 % (in der Belegschaft enthalten)“.
+  * `lagerferne`: Halt um 11:32, sobald der Wachturm am Rand steht. Das Bauwerkzeug
+    „Holzfällerhütte“ zeigt einen bernsteinfarbenen Geist über einem Platz, den kein Lager
+    erreicht.
+* **Befunde aus diesen Bildern behoben:**
+  * Der Platzierungs-Tooltip lag über dem rechten Teil des Geists. Er steht jetzt neben dem
+    Umriss der Grundfläche (`tooltip::beside_footprint`: rechts davon, ohne Platz links), beim
+    Bauen und Versetzen.
+  * „Kein Lager erreicht diesen Bauplatz“ steht als Grund für die Bernsteinfarbe jetzt vor den
+    übrigen Warnungen.
+  * Gasthaus und Einarbeitung zeigten keinen Fehler.
+* **Blocksatz in den Reitern** (bestätigt): egui-Spalten (`Ui::columns`) sind `top_down_justified`
+  und setzten umbrochene Texte im Blocksatz mit gedehnten Wortabständen. Betroffen waren der
+  Leerzustand „Gasthäuser“ und der Wohlstand-Hinweis (Bevölkerung) sowie die Erklärungen zu
+  Steuern, „Hof und Feste“ und „„Heute“ zählt seit Mitternacht …“ (Finanzen). Neues
+  `management::columns`: wie `Ui::columns`, aber linksbündig ohne Blocksatz, jetzt in
+  Bevölkerung, Finanzen, Wirtschaft, Landwirtschaft und Diplomatie. Der Knopf „Feste im Reiter
+  Bevölkerung …“ ist jetzt so breit wie sein Text, wie die übrigen Knöpfe.
+  * Bild `16_fest_ausrichten.png` aus demselben Spielstand neu aufgenommen (Debug-Build). Im
+    Fenster unterscheiden sich nur die beiden Hinweiszeilen und die Lage der Bildlaufleiste.
+* **Hinweis zur Sim-Lane:** Mauer- und Torbaustellen ohne Straße sowie Art und Gebäude-ID der
+  Meldungen sind in dieser Stufe nicht genutzt; der Merge-Schritt übernimmt sie.
+
+**Geprüft**
+* Neue Tests:
+  * `scenes::auto_pause` (5 Tests): „Später“ setzt fort, Ereignis hält die Pause, Gefahr nur durch
+    den Spieler, Pause des Spielers, Einstellungen.
+  * `management::tests::hints_in_columns_are_not_justified`: Gegenprobe mit `Ui::columns`, die
+    Galley ist dort `justify`.
+  * `management::tests::columns_share_the_width_and_advance_below_the_tallest`.
+  * `tooltip::tests::a_placement_tooltip_stays_beside_the_footprint`.
+  * `dev_case::tests::cases_from_the_variable`; Startoptionen-Test um `KINGDOMS_DEV_CASE`
+    erweitert.
+* `cargo test --workspace`: alles grün.
+  * Spiel 242, Assetgen 69, Engine 74.
+  * Sim 410 (+ 9 ignorierte), Kampagne 8 (+ 2 ignorierte).
+  * Determinismus 12, Fuzz 7, vernünftiger Spieler 2, Doctest 1.
+* `cargo clippy --workspace --all-targets -- -D warnings` sauber.
+* Bilder angesehen (Debug-Build, Xvfb + lavapipe, 1600 × 900):
+  * **„Später“ per XTest:** Einstellung „Bei Entscheidungen anhalten“,
+    `KINGDOMS_DEV_SETTLEMENT=2 KINGDOMS_WARP_TICKS=58300`. Um 10:00 kommt das Kaufangebot aus
+    Hohenmark, das Spiel hält an (zwei Bilder, beide 10:00). Ein Klick auf „Später“ schließt die
+    Karte; danach läuft 1× weiter (10:19, 10:46).
+  * **Folgekamera:** `KINGDOMS_FOCUS=feind KINGDOMS_DEV_THREAT=banditen:12`, 4×,
+    `KINGDOMS_FIXED_DT=0.05`, Frames 60 und 61. Die Beschriftung „Räuberbande (12) · Greift an“
+    steht in beiden Frames gleich über der Gruppe in Bildmitte, der Hintergrund wandert.
+  * **Reiter:** Bevölkerung, Finanzen, Landwirtschaft, Wirtschaft und Diplomatie, vorher und
+    nachher in mehreren Bildlauf-Stellungen. Landwirtschaft und Wirtschaft sind pixelgleich,
+    sonst ändern sich nur die Hinweistexte und der Knopf.
+  * Die drei Entwickler-Fälle, Gasthaus zu drei Uhrzeiten.
+
+**Offen**
+* Die Bilder der Entwickler-Fälle liegen nur im Scratch-Verzeichnis, nicht in
+  `docs/screenshots/`; mit `KINGDOMS_DEV_CASE` lassen sie sich jederzeit neu aufnehmen.
+* Gäste im Gasthaus erkennt man nur an den beleuchteten Fenstern und an den Bürgern auf dem
+  Weg dorthin; das Info-Fenster nennt keine Gästezahl.
+* Aus der Abschlussprüfung nach Runde 10 sind „Nicht im Bild gesehen“ und „Bedienung“ erledigt.
+  Weiter offen: Lieferungen von außen, Simulation und Meldungen (Mauerring, Art und Gebäude-ID
+  der Meldungen – beides kommt mit dem Merge der Sim-Lane), Balance und alte Spielstände (siehe
+  unten).
+
+## 2026-11-24 · Simulation Polish-Runde 11: Mauerlinie ohne Straße, Balance-Regression, Meldungsarten, Wartezustände (`crates/sim`, `data/`, Doku)
+
+**Fertig**
+* **Mauerlinie ohne Straße:** Neues `Access` je Gebäudetyp (`access: AnySide` für `wall`, `gate`,
+  `watchtower`, `stone_tower`; nur 1×1 ohne Lager, Ausbau behält die Zugangsart). Solche Gebäude
+  und ihre Baustellen werden von jedem begehbaren Nachbarfeld betreten (`buildings::access_points`,
+  `is_open_sided`): Bauarbeiter arbeiten von jeder erreichbaren Seite, Träger beliefern über einen
+  Fußweg vom Lagereingang (`Link::Walk`), die Bauvorschau warnt nicht mehr vor fehlender Straße
+  (`BuildingDef::needs_road`). Test: ein geschlossener Ring aus 44 Mauerstücken samt Ecken, davon
+  vier Tore, um das Rathaus wird ohne Straßen in unter zwei Tagen fertig gebaut; ein feindliches
+  Heer kommt erst nach einer Bresche hinein (es greift Mauer oder Tor an).
+* **Balance-Regression** (vorher: nur Seed 7 Großstadt, Seed 23/31 Stadt mit Gebiet 1 751/2 057
+  von 2 400, Seed 23 ohne Schule, Seed 31 zwei Erfrorene am Tag 143, ehrgeiziger Spieler Seed 31
+  Marktflecken mit 93/100 Einwohnern). Regeln, an denen ein umsichtiger Spieler scheiterte:
+  * **Nachschub** (`TransportKind::Restock`): Fehlt Baumaterial in jedem Lager in Reichweite einer
+    Baustelle, tragen Träger es aus Lagern desselben Straßennetzes in das Lager, das die Baustelle
+    beliefert – ein leeres Außenposten-Lagerhaus füllt sich aus der Stadt (Turm- und
+    Försterbaustellen am Rand warteten sonst ewig).
+  * **Heizen geht vor:** Werkstätten erhalten in der Heizzeit Brennstoff nur über den Heizvorrat
+    der Haushalte hinaus (`fuel_reserve_days` 2); ein Haus ganz ohne Brennstoff nimmt in der Not
+    einen Tagesbedarf auch aus Holz, das Baustellen versprochen ist; der Einkauf läuft sofort,
+    wenn das Haus kalt ist, und am Festtag vor dem Feiern; frühe Warnung „Brennholz wird knapp:
+    … reichen zum Heizen nur noch etwa 2 Tage …“ / „Der Winter naht: …“ einmal je Episode
+    (`fuel_warning_days` 3), Vorschau `report::fuel_forecast`.
+  * **Kein Bauplatz schließt einen Bewohner ein** (`PlacementError::TrapsCitizen`, „Das Gebäude
+    würde einen Bewohner einschließen.“) – auf Seed 7 verhungerte ein Bewohner in einer Uferbucht.
+  * **Ausgang zur richtigen Seite:** Wer auf einer Tür oder einer überbauten Fläche steht, verlässt
+    die Grundfläche auf dem kürzesten Weg, der zum Ziel weiterführt, statt in eine Nische neben dem
+    Haus. Im Langzeitlauf Seed 7 (mit Nachschub) verhungerten sonst elf Bewohner, u. a. zwei
+    Haushalte, deren kranker Läufer auf der Tür stand und „Kein Weg“ zum Markt meldete; mit der
+    Korrektur niemand.
+  * Testspieler (`tests/campaign.rs`): Sägewerk ruht bei knappem Holz, Holz zuerst, Rohstoffe vor
+    Ausbau, Schule auch am Stadtrand, Außenposten erst bei mindestens 80 Feldern neuem Land in Reichweite, Häuser nur mit Holz und
+    Gold, und jeden Morgen eine Zufahrt für Gebäude ohne Straße (auf Seed 31 stand die Kirche ohne
+    Straße, weil der Weg beim Platzieren am Stein scheiterte).
+* **Meldungsarten:** `Notification` hat zusätzlich `kind: NotificationKind` (25 Arten, z. B.
+  `MissingInput`, `NoCarriers`, `NoPath`, `Famine`, `NoFuel`, `Homeless`, `Treasury`, `Threat`;
+  `display_name` deutsch, `is_waiting_state`) und `building: Option<BuildingId>` (Builder
+  `with_kind`, `for_building`); `position` bleibt. Alle Meldungen der Simulation sind getaggt.
+* **Wartezustände einmal je Episode** (`notices::Spells`, `rules.ron` → `notices`:
+  `waiting_delay_hours` 1, `waiting_resolved_hours` 24): Rohstoffmangel, keine Rohstoffe im
+  Umkreis, dichter Wald, „Keine Träger“, „Kein Weg“, Hunger, Kälte, Obdachlose, knappes Brennholz
+  und schrumpfende Staatskasse werden beim Beginn gemeldet und erst nach 24 h ohne den Zustand
+  wieder; Bankrott bei Beginn und Ende statt täglich. Der Zustand bleibt in Berichten sichtbar.
+  Alle periodischen Meldungen durchgesehen (Sturm am ersten Tag, Rest ereignisbezogen).
+* Spielstand-Format 18 (`MIN` 18): Episoden der Wartezustände (auch Produktionsstatus,
+  Staatskasse), Nachschub-Aufträge.
+* Doku: game_design §1 (Ergebnisse unten), §2 Meldungen, §5/§5.5/§5.6 (Mauerlinie,
+  Einschließen), §6/§6.1 (Ausgang, Festtag, Heizen geht vor), §7 (Fußweg-Anbindung, Heizvorrat,
+  Nachschub); architecture §3; roadmap.
+
+**Langzeitlauf** (`cargo test --release -p kingdoms_sim --test campaign -- --ignored --nocapture`,
+acht Jahre, expansiver Spieler; 12 min 28 s):
+
+| Seed | Einwohner | Rang (Tag) | Schatz (tiefster) | Hunger/Kälte | Königreich fehlt |
+|---|---|---|---|---|---|
+| 7 | 12 → 375 | Dorf 7, Marktflecken 25, Stadt 77, **Großstadt 106** | 15 344 (1) | – / – | Burg (Gebiet 3 503/3 500 erfüllt) |
+| 23 | 12 → 317 | Dorf 7, Marktflecken 36, Stadt 74, **Großstadt 132** | 16 895 (1) | – / – | Burg, Gebiet 3 006/3 500, Einwohner 317/350 |
+| 31 | 12 → 374 | Dorf 7, Marktflecken 32, Stadt 70, **Großstadt 88** | 38 216 (0) | – / – | Burg, Gebiet 3 035/3 500 |
+
+Schule auf allen drei Karten aktiv. Ehrgeiziger Spieler (drei Jahre): Seed 7 Stadt (Tag 56, 140
+Einwohner), 23 Stadt (70, 109), 11 Stadt (61, 103), **31 Stadt** (58, 143; vorher Marktflecken),
+42 Stadt (55, 141).
+
+**Geprüft**
+* `cargo test -p kingdoms_sim`: Bibliothek 420 (+ 9 ignorierte), Kampagne 8 (+ 2 ignorierte),
+  Determinismus 13, Fuzz 7, vernünftiger Spieler 2, Doctest 1 – grün. Neu: geschlossener
+  Mauerring mit Toren, Zugang von jeder Seite ohne Straße, `AnySide`-Validierung samt Ausbau,
+  Einschließen abgelehnt, Nachschub für den Außenposten, Heizvorrat vor Werkstätten und
+  Baustellen, Festtag-Einkauf, Brennholz-Warnung einmal je Episode, Förster im dichten Wald
+  einmal, Lager ohne Träger einmal, Ausgang von der Tür (scheitert mit dem alten Verhalten),
+  `Spells`, Episoden laufen nach Laden identisch weiter (Determinismus mit Speichern/Laden).
+* `cargo clippy -p kingdoms_sim --all-targets -- -D warnings` sauber;
+  `RUSTDOCFLAGS='-D warnings' cargo doc -p kingdoms_sim --no-deps` sauber.
+* Langzeitlauf und Umfrage wie oben (release, `--ignored`) – grün.
+* Spiel: Kopie des Haupt-Arbeitsbereichs mit dieser `crates/sim` und `data/`,
+  `cargo check --workspace --all-targets` ohne Fehler und Warnungen.
+
+**Offen**
+* Spiel: Infopanel meldet bei Mauer, Tor und Türmen weiter „kein Straßenanschluss“
+  (`has_road_access`); ausblenden, wenn `defs.building(kind).needs_road()` falsch ist.
+* Spiel: Meldungsliste nach `Notification::kind`/`building` gruppieren und verlinken;
+  `report::fuel_forecast` im Reiter Landwirtschaft/Bevölkerung zeigen.
+* Seed 7 wird später Stadt als vorher (Tag 77 statt 50), endet aber größer (375 statt 257
+  Einwohner); Ursache nicht einzeln untersucht.
+* Königreich bleibt in acht Jahren unerreicht (Burg mit 20 Eisenbarren) – gewollt.
+
 ## 2026-11-24 · Abschlussprüfung nach Polish-Runde 10: Prüfläufe, Bilder, Audio-Lieferliste (`docs/`, `README.md`, `assets/`, ein Test in `src/sound.rs`)
 
 **Fertig**

@@ -21,7 +21,7 @@ use super::{Soldier, SoldierStage, count_text};
 use crate::buildings::BuildingId;
 use crate::defs::{Defs, ResourceCategory, UnitTypeId};
 use crate::economy::{LedgerCategory, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::{CitizenId, routine};
 use crate::state::GameState;
 
@@ -271,7 +271,7 @@ pub(crate) fn recruit(
     events.push(SimEvent::SoldiersRecruited { building, unit, count });
     let trainer = state.buildings.get(building).map_or(def.trained_at, |b| b.kind());
     let text = format!("{} in Ausbildung ({}).", count_text(u32::from(count), &def.name, &def.plural), building_name(defs, trainer));
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Military).at(at).for_building(building)));
     super::orders::assign_duties(state, defs);
     let mut venues = routine::Venues::default();
     for id in enlisted {
@@ -325,7 +325,7 @@ pub(crate) fn run_training(state: &mut GameState, defs: &Defs, events: &mut Vec<
             let name = state.population.full_name(id).unwrap_or_default();
             let at = c.motion().pos().tile();
             events.push(SimEvent::Notification(
-                Notification::new(Severity::Warning, format!("Die Ausbildung von {name} ist abgebrochen: das Ausbildungsgebäude ist fort.")).at(at),
+                Notification::new(Severity::Warning, format!("Die Ausbildung von {name} ist abgebrochen: das Ausbildungsgebäude ist fort.")).with_kind(NotificationKind::Military).at(at),
             ));
         }
         discharge(state, id);
@@ -344,7 +344,7 @@ pub(crate) fn run_training(state: &mut GameState, defs: &Defs, events: &mut Vec<
     for (b, u, n) in groups {
         let at = state.buildings.get(b).map_or(state.world.start, |bb| bb.entrance());
         let text = format!("Ausbildung abgeschlossen: {} bereit.", super::unit_count_text(defs, u, n));
-        events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Military).at(at).for_building(b)));
     }
     super::orders::assign_duties(state, defs);
 }

@@ -34,7 +34,7 @@ use crate::command::{CommandResult, RejectReason};
 use crate::defs::{BuildingDef, BuildingTypeId, CropId, Defs, RoadTypeId, ServiceKind, TechDef, TechEffect, TechId};
 use crate::economy::{LedgerCategory, storage};
 use crate::economy::ledger::HISTORY_DAYS;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::{HOURS_PER_DAY, TICKS_PER_HOUR};
 
@@ -727,7 +727,7 @@ fn start(state: &mut GameState, def: &TechDef, events: &mut Vec<SimEvent>) -> bo
             let missing = i64::from(def.cost_gold) - state.economy.treasury().max(0);
             let verb = if missing == 1 { "fehlt" } else { "fehlen" };
             let text = format!("Für die Forschung „{}“ {verb} noch {missing} Gold.", def.name);
-            events.push(SimEvent::Notification(Notification::new(Severity::Warning, text)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).with_kind(NotificationKind::Research)));
         }
         return false;
     }
@@ -739,7 +739,7 @@ fn start(state: &mut GameState, def: &TechDef, events: &mut Vec<SimEvent>) -> bo
     } else {
         format!("Forschung begonnen: {}.", def.name)
     };
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Research)));
     true
 }
 
@@ -755,7 +755,7 @@ fn complete(state: &mut GameState, defs: &Defs, tech: TechId, events: &mut Vec<S
         None => " Die Forschungsliste ist leer.".to_owned(),
     };
     let text = format!("Forschung abgeschlossen: {}. {}{next}", def.name, completion_summary(defs, def));
-    events.push(SimEvent::Notification(Notification::new(Severity::Good, text)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Research)));
 }
 
 #[cfg(test)]

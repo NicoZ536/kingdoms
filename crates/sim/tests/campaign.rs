@@ -125,6 +125,10 @@ enum Style {
     Expansive,
 }
 
+/// Wood the ambitious player wants in stock: below it woodcutters come first and the raw
+/// materials get the workers first.
+const AMBITIOUS_WOOD: u32 = 40;
+
 /// The ambitious player's build order: houses ahead (two sites at a time while fewer than six
 /// places are free), the church once researched (with 150 gold to spare), then the campaign
 /// order.
@@ -150,6 +154,20 @@ fn ambitious_goal(state: &GameState, defs: &Defs, blocked: &[&str]) -> Option<&'
         }
     }
     let fed = food.in_stock >= 12.0 * food.consumption_per_day;
+    // Wood next: houses, towers and the stoves burn it. While the stock runs short a woodcutter
+    // (with its forester) for every eight citizens, even if workers have to change jobs for it
+    // (the raw-material priority goes up meanwhile, see `ambitious_commands`).
+    let pop = summary.population as usize;
+    let site = |key: &str| state.buildings().iter().any(|(_, b)| b.kind() == kind(defs, key) && b.construction_site().is_some());
+    let wood_cost = |key: &str| i64::from(defs.building(kind(defs, key)).cost.gold) + 40;
+    if barracks && stock("wood") < AMBITIOUS_WOOD && !site("woodcutter") && !site("forester") {
+        if count("woodcutter") * 8 < pop + 16 && !blocked.contains(&"woodcutter") && gold >= wood_cost("woodcutter") {
+            return Some("woodcutter");
+        }
+        if count("forester") < count("woodcutter") && !blocked.contains(&"forester") && gold >= wood_cost("forester") {
+            return Some("forester");
+        }
+    }
     // Houses first (they are cheap), then the church (other buildings wait while it saves).
     let church = kind(defs, "church");
     let reserve = church_reserve(state, defs);
@@ -425,7 +443,7 @@ fn new_land_near(state: &GameState, p: glam::IVec2, radius: i32) -> i32 {
 /// The ambitious player's extras: the church order researched after the militia, the
 /// construction priority raised while sites wait for builders, and a watchtower at the border
 /// (where it claims the most new land) while the territory is short of the next rank.
-fn ambitious_commands(state: &GameState, defs: &Defs, blocked: &mut Vec<(&'static str, u64)>) -> Vec<Command> {
+fn ambitious_commands(state: &GameState, defs: &Defs, blocked: &mut Vec<(&'static str, u64)>, style: Style) -> Vec<Command> {
     use kingdoms_sim::defs::JobCategory;
     use kingdoms_sim::policy::JobPriority;
     let mut out = Vec::new();
@@ -450,6 +468,15 @@ fn ambitious_commands(state: &GameState, defs: &Defs, blocked: &mut Vec<(&'stati
             }
         }
     }
+    // Short of wood: the woodcutters get their workers first (the expansive player keeps its
+    // own wood floor, see `expansive_commands`).
+    if style != Style::Expansive {
+        let wood = defs.resource_id("wood").map_or(0, |r| state.economy().stock().get(r));
+        let wanted = if wood < AMBITIOUS_WOOD && state.buildings().count_of(kind(defs, "barracks")) > 0 { JobPriority::High } else { JobPriority::Normal };
+        if state.policy().job_priority(JobCategory::RawMaterials) != wanted {
+            out.push(Command::SetWorkforcePriority { category: JobCategory::RawMaterials, priority: wanted });
+        }
+    }
     // Sites waiting for builders: construction first until they have them.
     let waiting = state.buildings().iter().any(|(_, b)| b.construction_site().is_some() && b.workers_wanted(defs) > 0 && b.staffed() == 0);
     let wanted = if waiting { JobPriority::High } else { JobPriority::Normal };
@@ -467,10 +494,13 @@ fn ambitious_commands(state: &GameState, defs: &Defs, blocked: &mut Vec<(&'stati
     let food = report::food_forecast(state, defs);
     let house = kind(defs, "house_wood");
     let house_sites = state.buildings().iter().filter(|(_, b)| b.kind() == house && b.construction_site().is_some()).count();
+    // (Only while a house could go up: without the wood for one the border comes first.)
     let houses_wanted = house_sites < 2
         && !blocked.iter().any(|(k, _)| *k == "house_wood")
         && report::population_summary(state, defs).immigrant_places < 6
-        && food.in_stock >= 12.0 * food.consumption_per_day;
+        && food.in_stock >= 12.0 * food.consumption_per_day
+        && stock("wood") >= 30
+        && state.economy().treasury() >= 60;
     if short
         && !houses_wanted
         && !building_tower
@@ -513,10 +543,12 @@ fn outpost_warehouse(state: &GameState, defs: &Defs) -> Vec<Command> {
     if building_one || gold < cost + 150 + church_reserve(state, defs) || stock("wood") < 40 || stock("stone") < 20 {
         return Vec::new();
     }
-    // Its carriers reach about 20 tiles; the towers they supply claim 8 tiles around them.
+    // Its carriers reach about 20 tiles; the towers they supply claim 8 tiles around them. Half
+    // a ring of new land is enough: where the land is narrow (coast, neighbours) the town grows
+    // in smaller steps.
     let score = |o: glam::IVec2| if supplied(state, defs, o) { new_land_near(state, o, 18) } else { 0 };
     find_spot_in(state, defs, warehouse, state.world().start, 10..40, true, score)
-        .filter(|(o, ..)| score(*o) >= 150)
+        .filter(|(o, ..)| score(*o) >= 80)
         .map(|(origin, rotation, road)| vec![Command::PlaceBuilding { kind: warehouse, origin, rotation }, road])
         .unwrap_or_default()
 }
@@ -561,6 +593,24 @@ fn tax_commands(state: &GameState, defs: &Defs, style: Style) -> Option<Command>
         || (style != Style::Reasonable && church_reserve(state, defs) > 0);
     let percent = if saving { 15 } else { 10 };
     (state.policy().tax_rate_percent != percent).then_some(Command::SetTaxRate { percent })
+}
+
+/// The sawmills turn wood into planks; a player who has planks enough closes them, so the wood
+/// goes to houses and the stoves (docs/game_design.md §6.1 Heizen geht vor), and opens them
+/// again when planks run low: above `high` planks closed, below `low` open.
+fn sawmill_commands(state: &GameState, defs: &Defs, low: u32, high: u32) -> Vec<Command> {
+    let planks = defs.resource_id("planks").map_or(0, |r| state.economy().stock().get(r));
+    let mills = [kind(defs, "sawmill"), kind(defs, "large_sawmill")];
+    state
+        .buildings()
+        .iter()
+        .filter(|(_, b)| mills.contains(&b.kind()) && b.is_complete())
+        .filter_map(|(building, b)| {
+            let paused = b.is_paused();
+            let want = if planks >= high { true } else if planks < low { false } else { paused };
+            (want != paused).then_some(Command::SetBuildingPaused { building, paused: want })
+        })
+        .collect()
 }
 
 /// Research, recruitment and the company.
@@ -744,6 +794,24 @@ struct Outcome {
     reached: Vec<(String, u64)>,
 }
 
+/// Access roads for the buildings and sites whose entrance has no road (the road was rejected
+/// for want of material when they were placed): what a player does on the „kein
+/// Straßenanschluss“ warning. One road per call, only when it can be paid now.
+fn reconnect_roads(state: &GameState, defs: &Defs) -> Vec<Command> {
+    let Some(path) = defs.road_id("path") else { return Vec::new() };
+    state
+        .buildings()
+        .iter()
+        .filter(|(_, b)| defs.building(b.kind()).needs_road() && state.roads().get(b.entrance()).is_none())
+        .find_map(|(_, b)| {
+            kingdoms_sim::roads::plan_access_road(state, defs, b.kind(), b.origin(), b.rotation(), path)
+                .filter(|plan| plan.tiles.iter().any(|t| t.is_new))
+                .and_then(|plan| plan.to_command())
+        })
+        .into_iter()
+        .collect()
+}
+
 fn play(defs: &Defs, seed: u64, style: Style) -> Outcome {
     play_for(defs, seed, style, DAYS)
 }
@@ -761,6 +829,11 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
         let day = tick / TICKS_PER_DAY;
         let hour = (tick % TICKS_PER_DAY) / TICKS_PER_HOUR;
         let mut commands = Vec::new();
+        if tick % TICKS_PER_HOUR == 1 && hour == 7 {
+            // Every morning: a building whose access road could not be paid when it was placed
+            // („kein Straßenanschluss“) gets its road now.
+            commands.extend(reconnect_roads(&state, defs));
+        }
         if tick % TICKS_PER_HOUR == 1 {
             let goal = match style {
                 Style::Reasonable => campaign_goal,
@@ -776,6 +849,9 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
                             "forester" | "iron_mine" | "coal_mine" | "quarry" | "fishery" | "clay_pit" => true,
                             // Houses well inside a market's reach (the runners walk there daily).
                             "house_wood" => market_covers(&state, defs, o, 6),
+                            // The school serves the children in its radius wherever it stands:
+                            // once the old town is full it goes to the edge.
+                            "school" => true,
                             _ => market_covers(&state, defs, o, 1),
                         }
                 };
@@ -787,7 +863,9 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
                 commands.extend(tower_for_storage(&state, defs, &mut blocked));
             }
             if style != Style::Reasonable {
-                commands.extend(ambitious_commands(&state, defs, &mut blocked));
+                commands.extend(ambitious_commands(&state, defs, &mut blocked, style));
+                let (low, high) = if style == Style::Expansive { (80, 160) } else { (30, 60) };
+                commands.extend(sawmill_commands(&state, defs, low, high));
             }
             if style == Style::Expansive {
                 commands.extend(expansive_commands(&state, defs));
@@ -828,8 +906,10 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
                 f.in_stock, f.in_barns, f.consumption_per_day, f.other_production_per_day, count("vegetable_farm"), count("chicken_farm"), count("fishery"), count("storehouse"),
             );
             eprintln!(
-                "seed {seed} day {day:>2}: militia {} quarry {} sawmill {} barracks {} towers {} stone {} planks {} tools {} blocked {:?} unempl {}",
+                "seed {seed} day {day:>2}: militia {} woodcutters {} foresters {} quarry {} sawmill {} barracks {} towers {} stone {} planks {} tools {} blocked {:?} unempl {}",
                 defs.tech_id("militia_training").is_some_and(|t| state.research().is_researched(t)),
+                count("woodcutter") + count("lumber_camp"),
+                count("forester"),
                 count("quarry"),
                 count("sawmill"),
                 count("barracks"),
@@ -841,15 +921,24 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
                 state.workforce().unemployed(),
             );
             eprintln!(
-                "seed {seed} day {day:>2}: housing cap {} housed {} homeless {} free {} wood {} food {} goal {:?} buildings {}",
+                "seed {seed} day {day:>2}: housing cap {} housed {} homeless {} free {} wood {} food {} goal {:?} buildings {} church {} school {}",
                 s.housing_capacity,
                 s.housed,
                 s.homeless,
                 s.immigrant_places,
                 stock("wood"),
                 f.in_stock,
-                campaign_goal(&state, defs, &blocked.iter().map(|(k, _)| *k).collect::<Vec<_>>()),
+                {
+                    let names: Vec<&str> = blocked.iter().map(|(k, _)| *k).collect();
+                    match style {
+                        Style::Reasonable => campaign_goal(&state, defs, &names),
+                        Style::Ambitious => ambitious_goal(&state, defs, &names),
+                        Style::Expansive => expansive_goal(&state, defs, &names),
+                    }
+                },
                 state.buildings().len(),
+                count("church"),
+                count("school"),
             );
             if let Some(y) = state.economy().ledger().yesterday() {
                 eprintln!(
@@ -881,6 +970,18 @@ fn play_for(defs: &Defs, seed: u64, style: Style, days: u64) -> Outcome {
             next.requirements.iter().map(|r| format!("{} {}/{}", r.label, r.current, r.required)).collect::<Vec<_>>()
         );
     }
+    let rank_buildings: Vec<(String, String)> = state
+        .buildings()
+        .iter()
+        .filter(|(_, b)| {
+            matches!(defs.building(b.kind()).key.as_str(), "church" | "cathedral" | "school" | "academy") || b.construction_site().is_some()
+        })
+        .map(|(id, b)| {
+            let work = kingdoms_sim::buildings::site_work(&state, defs, id).map(|w| w.text()).unwrap_or("");
+            (defs.building(b.kind()).key.clone(), format!("{:?} {} at {}", b.status(), work, b.origin()))
+        })
+        .collect();
+    eprintln!("seed {seed} rank buildings: {rank_buildings:?}");
     eprintln!("seed {seed} events: {:?}", state.events().history().map(|r| defs.event(r.event).key.clone()).collect::<Vec<_>>());
     eprintln!("seed {seed} diplomacy: {:?}", state.diplomacy().history().map(|r| r.text.clone()).collect::<Vec<_>>());
     if let Some(over) = state.game_over() {
@@ -1074,9 +1175,9 @@ const LONG_DAYS: u64 = 8 * 24 + 1;
 
 /// The long game (docs/game_design.md §1 Fortschrittskurve): the expansive player
 /// ([`Style::Expansive`]) plays eight years on three seeds; the town keeps growing past 100
-/// inhabitants and at least one seed reaches „Großstadt“ (in Sim-Lane step 9 all three did:
-/// outpost warehouses carry the supply to the border, the town grows beyond the old rings,
-/// festivals spend the surplus). „Königreich“ is not expected within eight years: it needs the
+/// inhabitants and at least one seed reaches „Großstadt“ (in polish round 11 all three did:
+/// outpost warehouses are restocked from the town and supply the border, heating comes before
+/// the workshops, the town grows beyond the old rings, festivals spend the surplus). „Königreich“ is not expected within eight years: it needs the
 /// castle and its 20 iron bars. Prints the progression of every seed (the rank and the day it
 /// was reached, the season samples of the long-term statistics).
 #[test]

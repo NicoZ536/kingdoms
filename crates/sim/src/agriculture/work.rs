@@ -7,7 +7,7 @@ use super::{FarmKind, FarmTask, FieldTile, HarvestRecord, TaskKind, farm_buildin
 use crate::buildings::BuildingId;
 use crate::command::{CommandResult, RejectReason};
 use crate::defs::{BuildingDef, CropDef, CropId, Defs, ResourceAmount};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::production::{MILLI_PER_UNIT, ProductionStatus, update_status, work_rate_permille};
 use crate::state::GameState;
 use crate::time::TICKS_PER_HOUR;
@@ -295,7 +295,7 @@ fn harvest(state: &mut GameState, defs: &Defs, id: BuildingId, def: &BuildingDef
         let position = state.buildings.get(id).map(|b| b.entrance());
         events.push(SimEvent::HarvestCompleted { building: id, resource: r.resource, amount: r.amount });
         let name = defs.resources().get(r.resource.index()).map_or_else(|| r.resource.to_string(), |d| d.name.clone());
-        let mut note = Notification::new(Severity::Good, format!("{}: Ernte eingebracht – {} {name}.", def.name, r.amount));
+        let mut note = Notification::new(Severity::Good, format!("{}: Ernte eingebracht – {} {name}.", def.name, r.amount)).with_kind(NotificationKind::Agriculture);
         if let Some(position) = position {
             note = note.at(position);
         }

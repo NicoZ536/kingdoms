@@ -18,7 +18,7 @@ use glam::IVec2;
 use super::{Shortfall, Stock};
 use crate::buildings::{Building, BuildingId};
 use crate::defs::{BuildingDef, BuildingRole, Defs, ResourceAmount, ResourceId, TechEffect};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::research::Research;
 use crate::roads;
 use crate::state::GameState;
@@ -215,7 +215,7 @@ pub(crate) fn report_loss(defs: &Defs, resource: ResourceId, amount: u32, at: IV
     let name = defs.resources().get(resource.index()).map_or_else(|| resource.to_string(), |r| r.name.clone());
     events.push(SimEvent::ResourcesLost { resource, amount, position: at });
     events.push(SimEvent::Notification(
-        Notification::new(Severity::Warning, format!("Kein Lagerplatz: {amount} {name} {} verloren.", if amount == 1 { "ging" } else { "gingen" }))
+        Notification::new(Severity::Warning, format!("Kein Lagerplatz: {amount} {name} {} verloren.", if amount == 1 { "ging" } else { "gingen" })).with_kind(NotificationKind::StorageFull)
             .at(at),
     ));
 }

@@ -21,7 +21,7 @@
 use super::recruit;
 use crate::defs::{Defs, ResourceCategory, ServiceKind};
 use crate::economy::storage;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::{CitizenId, LifeStage, routine};
 use crate::state::GameState;
 
@@ -52,7 +52,7 @@ pub(crate) fn run_day(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEv
         events.push(SimEvent::Notification(Notification::new(
             Severity::Danger,
             "Der Sold bleibt aus: Die Staatskasse ist leer, die Moral der Soldaten sinkt.",
-        )));
+        ).with_kind(NotificationKind::Treasury)));
     }
     // Old soldiers leave the service.
     let old: Vec<CitizenId> = state

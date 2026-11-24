@@ -808,3 +808,51 @@ fn festivals_raids_and_the_paced_inbox_continue_identically_after_loading() {
     assert!(events.iter().any(|e| matches!(e, SimEvent::ThreatApproaching { kingdom: None, .. })));
     state.validate(&defs).unwrap_or_else(|e| panic!("consistent state: {e}"));
 }
+
+/// Snow and a crowd of newcomers: hunger, cold and homelessness begin as spells of waiting
+/// states (docs/game_design.md §2 Meldungen).
+fn spell_commands(state: &GameState, defs: &Defs, tick: u64) -> Vec<Command> {
+    match tick {
+        1 => vec![
+            Command::DebugSetWeather { weather: kingdoms_sim::defs::Weather::Snow, intensity: 100, days: 4 },
+            Command::DebugSpawnHouseholds { count: 12 },
+        ],
+        _ => town_commands(state, defs, tick),
+    }
+}
+
+#[test]
+fn waiting_state_spells_continue_identically_after_loading() {
+    use kingdoms_sim::event::NotificationKind;
+    let defs = load_defs();
+    let mut state = GameState::new(&defs, GameSettings::new(&defs, 5, WorldSize::Small));
+    let split = TICKS_PER_DAY + TICKS_PER_DAY / 3;
+    let mut events = Vec::new();
+    for tick in 0..split {
+        events.extend(state.tick(&defs, spell_commands(&state, &defs, tick)));
+    }
+    let header = SaveHeader::for_state(&state, &defs, "spells", 0);
+    let bytes = save::encode(&header, &state).unwrap_or_else(|e| panic!("encoding failed: {e}"));
+    let mut loaded = save::decode(&bytes, &defs).unwrap_or_else(|e| panic!("decoding failed: {e}")).state;
+    for tick in split..3 * TICKS_PER_DAY {
+        let a = state.tick(&defs, spell_commands(&state, &defs, tick));
+        let b = loaded.tick(&defs, spell_commands(&loaded, &defs, tick));
+        assert_eq!(a, b, "events differ at tick {tick}");
+        events.extend(a);
+    }
+    let encode = |s: &GameState| save::encode(&SaveHeader::for_state(s, &defs, "x", 0), s).ok();
+    assert_eq!(encode(&state), encode(&loaded));
+    // Waiting states are told once per spell, not every few hours.
+    let waiting: Vec<(NotificationKind, String)> = events
+        .iter()
+        .filter_map(SimEvent::notification)
+        .filter(|n| n.kind.is_waiting_state())
+        .map(|n| (n.kind, n.text.clone()))
+        .collect();
+    eprintln!("waiting-state notices: {waiting:?}");
+    assert!(!waiting.is_empty(), "snow and newcomers began a waiting state");
+    for kind in NotificationKind::ALL.iter().filter(|k| matches!(k, NotificationKind::Homeless | NotificationKind::NoFuel | NotificationKind::Famine)) {
+        assert!(waiting.iter().filter(|(k, _)| k == kind).count() <= 1, "{kind:?} told more than once: {waiting:?}");
+    }
+    state.validate(&defs).unwrap_or_else(|e| panic!("consistent state: {e}"));
+}

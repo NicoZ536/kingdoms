@@ -455,29 +455,45 @@ pub fn building_tooltip(
     );
 }
 
-/// Price with icons; missing parts in red.
+/// Width of `text` on one line in `ui`, in points.
+fn one_line_width(ui: &egui::Ui, text: impl Into<egui::WidgetText>) -> f32 {
+    text.into().into_galley(ui, Some(egui::TextWrapMode::Extend), f32::INFINITY, egui::FontSelection::Default).size().x
+}
+
+/// Price with icons; missing parts in red. The parts wrap onto further lines from the top of the
+/// space they get: in a grid cell a bare wrapping row would start at the vertical centre of the
+/// cell (the height of the row in the previous frame) and spill over the rows below.
 pub fn cost_line(ui: &mut egui::Ui, icons: &Icons, defs: &Defs, state: &GameState, cost: &kingdoms_sim::defs::Cost) {
     let items = cost_items(defs, state.economy(), cost);
-    ui.horizontal_wrapped(|ui| {
+    ui.vertical(|ui| ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = 3.0;
         if items.is_empty() {
             ui.label("kostenlos");
         }
         for item in &items {
-            if let Some(icon) = icons.get(&item.icon) {
-                icon.show(ui, 18.0).on_hover_text(&item.name);
-            } else {
-                ui.label(&item.name);
-            }
             let text = if item.affordable() {
                 item.needed.to_string()
             } else {
-                format!("{} (hast {})", item.needed, item.available.max(0))
+                format!("{} (Ihr habt {})", item.needed, item.available.max(0))
             };
-            ui.colored_label(ok_color(item.affordable()), text);
+            let text = RichText::new(text).color(ok_color(item.affordable()));
+            let icon = icons.get(&item.icon);
+            // Icon and amount stay together on one line: a part that does not fit starts the
+            // next line instead of breaking its text.
+            let label_width = if icon.is_some() { 18.0 } else { one_line_width(ui, item.name.as_str()) };
+            let width = label_width + 3.0 + one_line_width(ui, text.clone()) + 4.0;
+            if ui.available_size_before_wrap().x < width && ui.cursor().min.x > ui.max_rect().min.x {
+                ui.end_row();
+            }
+            if let Some(icon) = icon {
+                icon.show(ui, 18.0).on_hover_text(&item.name);
+            } else {
+                ui.add(egui::Label::new(item.name.as_str()).extend());
+            }
+            ui.add(egui::Label::new(text).extend());
             ui.add_space(4.0);
         }
-    });
+    }));
 }
 
 fn road_button(ui: &mut egui::Ui, input: &HudInput<'_>, icons: &Icons, road: &RoadDef, actions: &mut Vec<HudAction>) {

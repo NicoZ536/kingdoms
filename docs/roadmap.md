@@ -263,7 +263,34 @@ Warnungen, Atlanten und App-Symbol bytegleich reproduzierbar, keine TODO/FIXME/`
 `unimplemented!`/`dbg!`; Bilder 01–03, 07, 10 und 14 neu, neu 17 „Winter und Minikarte“
 (17 Bilder, alle angesehen); Audio-Lieferliste als `assets/audio/delivery.json` im Projekt
 (143 IDs, per Test mit dem Manifest abgeglichen); Langzeitläufe grün, die Großstadt erreicht
-dabei aber nur noch einer von drei Seeds (Balance offen, siehe `progress.md`).
+dabei aber nur noch einer von drei Seeds (behoben in Polish-Runde 11, siehe unten).
+✅ Spiel-Feinschliff Runde 11: „Später“ auf der Anfragekarte setzt die automatische Pause fort
+(Pausengründe Ereignis, Anfrage, Gefahr), Folgekamera vor dem HUD (Beschriftungen ohne
+Verzögerung), Entwickler-Fälle `KINGDOMS_DEV_CASE` (Gasthaus mit Bier und Gästen, Einarbeitung,
+Bauplatz außerhalb jeder Lager-Reichweite) mit Platzierungs-Tooltip neben dem Geist, Reiter ohne
+Blocksatz in Spalten; Bild 16 neu.
+✅ Feinschliff Simulation (Polish-Runde 11): geschlossener Mauerring mit Toren samt Ecken ohne
+Straßen baubar (Mauer, Tor und Türme werden von jeder Seite betreten und beliefert), „Heizen geht
+vor“ (Heizvorrat vor Werkstätten, Brennstoff in der Not auch aus Baumaterial, Einkauf auch am
+Festtag und sofort bei kaltem Haus, Warnung „Brennholz wird knapp“), kein Bauplatz schließt
+Bewohner ein, Nachschub für Baustellen am Außenposten, Meldungen mit Art und Gebäude,
+Wartezustände einmal je Episode; Spielstand-Format 18; im Langzeitlauf erreichen alle drei Karten
+die Großstadt.
+✅ Zusammenführung Schritt 11: Meldungen gruppieren, beruhigen und verlinken nach Art und Gebäude
+der Simulation (Auswahl „Art“ in der Liste, Klick wählt das Gebäude), Mauer, Tor und Türme ohne
+Straßenwarnung und ohne Zufahrt, `KINGDOMS_DEV_WALLS` als geschlossener Ring samt Ecken (Belagerung
+mit Torbruch im Bild), Brennstoff-Vorschau im Reiter Landwirtschaft und in der Übersicht.
+✅ Prüfung Runde 11 mit Regressionslauf: alle Punkte der Runde mit Bildern, XTest und Tests belegt
+(automatische Pause, Folgekamera, Entwickler-Fälle, Spalten ohne Blocksatz, Mauerring mit
+Torbruch, Meldungen nach Art, Wartezustände über zwei Jahre, Langzeitlauf Seed 7); behoben:
+Plünder-Meldungen mit Artikel und passendem Verb, einheitliche Anrede „Ihr“, Kosten im
+Bau-Tooltip ohne Überlappung, Zusammensetzung feindlicher Heere im Reiter Militär umbrochen.
+✅ Abschlussprüfung nach Polish-Runde 11: Release-Build, alle Tests, Clippy und Rustdoc ohne
+Warnungen, Atlanten und App-Symbol bytegleich reproduzierbar, keine TODO/FIXME/`todo!`/
+`unimplemented!`/`dbg!`; Langzeitläufe grün (alle drei Karten Großstadt, keine Hunger- oder
+Kältetoten); Bilder 01, 04–11, 13 und 15–17 neu aus dem Release-Build (Meldungskarten mit Art,
+Spielstände im Format 18, Kampf am geschlossenen Mauerring mit Torbruch); Audio-Lieferliste
+unverändert (Manifest seit Runde 9 gleich, gegen Manifest, Audio-Bericht und Test geprüft).
 ⬜ Fehlerbehebung nach Rückmeldungen vom Mac: In der Entwicklungsumgebung gibt es keinen Mac; das
 Spiel und `tools/macos/make_app.sh` (Symbol, Signatur) wurden auf macOS weder gebaut noch
 gestartet. Offen, bis Rückmeldungen von echter Hardware vorliegen.

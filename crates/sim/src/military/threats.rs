@@ -48,7 +48,7 @@ use crate::buildings::BuildingId;
 use crate::defs::{BuildingRole, BuildingTypeId, DamageCause, Defs, ResourceAmount, ResourceCategory, ServiceKind};
 use crate::diplomacy::{KingdomId, MemoryCause};
 use crate::economy::{LedgerCategory, MILLI_PER_GOLD, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::{Destination, Motion, ServiceIndex, Traveler, TravelerId, TripPhase, WalkerId, movement};
 use crate::state::GameState;
 use crate::time::TICKS_PER_HOUR;
@@ -74,6 +74,28 @@ fn building_name(state: &GameState, defs: &Defs, id: BuildingId) -> String {
 pub(super) fn breach_text(role: Option<BuildingRole>, name: &str) -> String {
     let article = if role == Some(BuildingRole::Gate) { "das" } else { "die" };
     format!("Die Feinde haben {article} {name} durchbrochen!")
+}
+
+/// „Räuber plündern das Gebäude „Rathaus“: 12 Holz und 30 Gold.“ / „Das Heer von Weidenthal
+/// plündert das Gebäude „Lagerhaus“, findet aber nichts.“: the plunder of a building by bandits
+/// (`army` `None`) or by the army of the named kingdom, with the verbs agreeing with the subject
+/// and the building named like the other notices („das Gebäude „…““, as building names carry no
+/// grammatical gender in the data).
+pub(super) fn plunder_text(army: Option<&str>, name: &str, loot: &str) -> String {
+    let (who, plunders, finds) = match army {
+        None => ("Räuber".to_owned(), "plündern", "finden"),
+        Some(kingdom) => (format!("Das Heer von {kingdom}"), "plündert", "findet"),
+    };
+    if loot.is_empty() {
+        format!("{who} {plunders} das Gebäude „{name}“, {finds} aber nichts.")
+    } else {
+        format!("{who} {plunders} das Gebäude „{name}“: {loot}.")
+    }
+}
+
+/// „Die Plünderer haben das Gebäude „Rathaus“ angezündet!“
+pub(super) fn arson_text(name: &str) -> String {
+    format!("Die Plünderer haben das Gebäude „{name}“ angezündet!")
 }
 
 fn kingdom_name(state: &GameState, id: KingdomId) -> String {
@@ -167,7 +189,7 @@ pub(crate) fn spawn_band(state: &mut GameState, defs: &Defs, size: u16, delay: u
         hours_text(delay.div_ceil(TICKS_PER_HOUR).max(1)),
         crate::report::deadline_clock_text(state.clock.tick, arrive_tick)
     );
-    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(entry)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(entry)));
     size
 }
 
@@ -265,7 +287,7 @@ pub(crate) fn send_army(state: &mut GameState, defs: &Defs, id: KingdomId, size:
         hours_text(hours)
     );
     state.diplomacy.record(state.clock.tick, Some(id), None, text.clone());
-    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(entry)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(entry)));
     true
 }
 
@@ -445,7 +467,7 @@ pub(crate) fn run_arrivals(state: &mut GameState, defs: &Defs, events: &mut Vec<
             None => format!("{who} die Grenze!"),
         };
         events.push(SimEvent::ThreatArrived { warband: id, size: snapshot.size });
-        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(entry)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(entry)));
     }
 }
 
@@ -515,16 +537,16 @@ pub(crate) fn damage_structure(state: &mut GameState, defs: &Defs, id: BuildingI
     }
     if role == Some(BuildingRole::Headquarters) {
         let text = format!("Das Hauptquartier „{name}“ ist gestürmt! Haltet Soldaten in der Nähe, sonst geht das Reich verloren.");
-        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(at).for_building(id)));
         return;
     }
     state.military.damage.remove(&id);
     if wall {
         crate::buildings::destroy_structure(state, defs, id, events);
-        events.push(SimEvent::Notification(Notification::new(Severity::Danger, breach_text(role, &name)).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Danger, breach_text(role, &name)).with_kind(NotificationKind::Threat).at(at)));
     } else if crate::buildings::damage_building(state, defs, id, DamageCause::Attack, events).is_some() {
         let text = format!("Das Gebäude „{name}“ ist zerstört und muss wiederaufgebaut werden.");
-        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(at).for_building(id)));
     }
     for w in &mut state.military.warbands {
         for f in &mut w.fighters {
@@ -646,9 +668,9 @@ fn plunder(state: &mut GameState, defs: &Defs, wi: usize, events: &mut Vec<SimEv
     }
     let name = building_name(state, defs, target);
     let at = state.buildings.get(target).map_or(state.world.start, |b| b.entrance());
-    let who = match kind {
-        WarbandKind::Bandits => "Räuber plündern".to_owned(),
-        WarbandKind::Army { kingdom, .. } => format!("Das Heer von {} plündert", kingdom_name(state, kingdom)),
+    let army = match kind {
+        WarbandKind::Bandits => None,
+        WarbandKind::Army { kingdom, .. } => Some(kingdom_name(state, kingdom)),
     };
     let mut loot = goods_text(defs, &taken);
     if gold > 0 {
@@ -657,16 +679,16 @@ fn plunder(state: &mut GameState, defs: &Defs, wi: usize, events: &mut Vec<SimEv
         }
         loot.push_str(&format!("{gold} Gold"));
     }
-    let text = if loot.is_empty() { format!("{who} {name}, finden aber nichts.") } else { format!("{who} {name}: {loot}.") };
+    let text = plunder_text(army.as_deref(), &name, &loot);
     if !taken.is_empty() {
         events.push(SimEvent::StockLost { lost: taken.clone(), buildings: vec![target], position: Some(at) });
     }
-    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Threat).at(at).for_building(target)));
     // Arson.
     let fire = state.military.rng.random_range(0..100u8) < rules.bandits.fire_percent;
     if fire && crate::buildings::damage_building(state, defs, target, DamageCause::Fire, events).is_some() {
         state.military.warbands[wi].tally.buildings_damaged += 1;
-        events.push(SimEvent::Notification(Notification::new(Severity::Danger, format!("Die Plünderer haben {name} angezündet!")).at(at)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Danger, arson_text(&name)).with_kind(NotificationKind::Threat).at(at).for_building(target)));
     }
 }
 
@@ -738,7 +760,7 @@ pub(crate) fn decide(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEve
                 WarbandKind::Army { kingdom, .. } => format!("Das Heer von {} zieht sich zurück!", kingdom_name(state, kingdom)),
             };
             let at = state.military.warbands[wi].entry;
-            events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(at)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Threat).at(at)));
         }
         // The target may be gone (demolished, burned): choose again.
         if state.military.warbands[wi].stage == WarbandStage::Attacking
@@ -978,7 +1000,7 @@ fn give_up_target(state: &mut GameState, defs: &Defs, wi: usize, from: IVec2, ev
         WarbandKind::Bandits => "Die Räuber finden keinen Weg zu ihrem Ziel und ziehen ab.".to_owned(),
         WarbandKind::Army { kingdom, .. } => format!("Das Heer von {} findet keinen Weg zu seinem Ziel und zieht ab.", kingdom_name(state, kingdom)),
     };
-    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(from)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Threat).at(from)));
 }
 
 /// A withdrawing or fleeing group that has found no way off the map for
@@ -1005,7 +1027,7 @@ fn disband_shut_in(state: &mut GameState, defs: &Defs, wi: usize, events: &mut V
         state.population.walking.travelers.remove(walker);
     }
     state.military.warbands[wi].stuck_ticks = 0;
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(at)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Threat).at(at)));
 }
 
 /// A fleeing or withdrawing fighter heads for the map edge it came through; if it cannot get
@@ -1216,7 +1238,7 @@ fn report(state: &mut GameState, defs: &Defs, w: Warband, events: &mut Vec<SimEv
         (_, BattleOutcome::Victory) => "Angriff abgewehrt",
         _ => "Angriff",
     };
-    events.push(SimEvent::Notification(Notification::new(severity, format!("{title}. {text}")).at(w.entry)));
+    events.push(SimEvent::Notification(Notification::new(severity, format!("{title}. {text}")).with_kind(NotificationKind::Battle).at(w.entry)));
 }
 
 /// Daily repair of damage on structures while no enemies are on the map.

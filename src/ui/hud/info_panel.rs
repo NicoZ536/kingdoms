@@ -218,13 +218,19 @@ fn military_section(ui: &mut egui::Ui, input: &HudInput<'_>, id: BuildingId, def
     }
 }
 
+/// True if building `id` needs a road at its entrance and has none. Wall segments, gates and
+/// towers on a wall line are entered from any side and need no road (`BuildingDef::needs_road`).
+fn lacks_road(state: &GameState, defs: &Defs, id: BuildingId, b: &Building) -> bool {
+    defs.buildings().get(b.kind().index()).is_none_or(BuildingDef::needs_road) && !state.has_road_access(id)
+}
+
 fn status_line(state: &GameState, defs: &Defs, id: BuildingId, b: &Building, production: Option<&ProductionReport>) -> (String, egui::Color32) {
     let status = b.status();
     let base = status.display_name().to_owned();
     if status == BuildingStatus::Paused {
         return (base, Palette::WARN);
     }
-    if !state.has_road_access(id) {
+    if lacks_road(state, defs, id, b) {
         return (format!("{base} · kein Straßenanschluss"), Palette::BAD);
     }
     if let Some(site) = b.construction_site() {
@@ -411,7 +417,7 @@ fn production_section(
             row(ui, label, value.clone());
         }
     });
-    if !report.has_road_access {
+    if !report.has_road_access && def.needs_road() {
         ui.colored_label(Palette::BAD, "Kein Straßenanschluss: Träger erreichen das Gebäude nicht.");
     } else if report.serving_storages == 0 {
         ui.colored_label(Palette::WARN, "Kein Lager in Trägerreichweite.");

@@ -8,7 +8,7 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 
 /// Game seconds per tick.
 pub const SECONDS_PER_TICK: u64 = 18;
@@ -286,7 +286,7 @@ pub(crate) fn run_calendar(clock: &mut GameClock, events: &mut Vec<SimEvent>) {
         events.push(SimEvent::Notification(Notification::new(
             Severity::Good,
             format!("Ein neues Jahr beginnt: Jahr {year}."),
-        )));
+        ).with_kind(NotificationKind::Weather)));
     }
     if clock.is_new_season() {
         events.push(SimEvent::SeasonChanged { season, year });
@@ -296,7 +296,7 @@ pub(crate) fn run_calendar(clock: &mut GameClock, events: &mut Vec<SimEvent>) {
             Season::Autumn => "Der Herbst beginnt – die Erntezeit ist da.",
             Season::Winter => "Der Winter beginnt. Sorgt für Brennholz und Vorräte!",
         };
-        events.push(SimEvent::Notification(Notification::new(Severity::Info, text)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Weather)));
     }
 }
 

@@ -222,6 +222,60 @@ pub enum PlacementError {
         /// In stock.
         available: u32,
     },
+    /// The building would shut a citizen into a pocket of land without any way out (between
+    /// buildings and water, docs/game_design.md §5).
+    #[error("Das Gebäude würde einen Bewohner einschließen.")]
+    TrapsCitizen,
+}
+
+/// Most tiles the pocket search of [`traps_a_citizen`] visits: a larger region is no pocket.
+const POCKET_LIMIT: usize = 96;
+
+/// Citizens this many tiles around a footprint are checked by [`traps_a_citizen`].
+const POCKET_REACH: i32 = 10;
+
+/// True if a citizen standing near `rect` (within [`POCKET_REACH`] tiles) would be shut in by a
+/// footprint there: before, its
+/// tile reaches a road or a building entrance (or many tiles); with `rect` blocked it reaches
+/// neither within [`POCKET_LIMIT`] tiles. Citizens on the footprint itself walk out of it
+/// (`population::movement`). Reads the walking grid and the walkers' spatial index.
+fn traps_a_citizen(state: &GameState, rect: TileRect, ignore: Option<BuildingId>) -> bool {
+    let nav = &state.navigation;
+    if !nav.is_built() {
+        return false;
+    }
+    // A pocket holds at most POCKET_LIMIT tiles: its citizens stand within this many tiles.
+    let near = rect.expanded(POCKET_REACH);
+    let way_out = |p: IVec2| {
+        state.roads.get(p).is_some()
+            || crate::grid::Direction::ALL.iter().any(|d| {
+                state.buildings.at(p + d.offset()).is_some_and(|(id, b)| Some(id) != ignore && b.entrance() == p)
+            })
+    };
+    // Breadth-first over walkable tiles (and not `blocked`): true if the region reaches a way out
+    // or is large.
+    let open_region = |start: IVec2, blocked: Option<TileRect>| -> bool {
+        let mut seen = std::collections::BTreeSet::from([(start.x, start.y)]);
+        let mut queue = std::collections::VecDeque::from([start]);
+        while let Some(p) = queue.pop_front() {
+            if way_out(p) || seen.len() > POCKET_LIMIT {
+                return true;
+            }
+            for d in crate::grid::Direction::ALL {
+                let q = p + d.offset();
+                if nav.step_cost(p, d).is_some() && !blocked.is_some_and(|r| r.contains(q)) && seen.insert((q.x, q.y)) {
+                    queue.push_back(q);
+                }
+            }
+        }
+        false
+    };
+    state.population.walking.index.in_rect(near).any(|id| {
+        let crate::population::WalkerId::Citizen(c) = id else { return false };
+        let Some(m) = state.population.citizen(c).map(|c| c.motion()) else { return false };
+        let tile = m.pos().tile();
+        m.inside().is_none() && near.contains(tile) && !rect.contains(tile) && nav.is_walkable(tile) && open_region(tile, None) && !open_region(tile, Some(rect))
+    })
 }
 
 /// Something the player should know, which does not prevent placement. German `Display`.
@@ -561,6 +615,9 @@ pub(crate) fn check_placement_with(
     }
 
     check_type_rules(state, defs, def, rect, territory, opts.ignore, &mut check.errors);
+    if check.errors.is_empty() && traps_a_citizen(state, rect, opts.ignore) {
+        check.errors.push(PlacementError::TrapsCitizen);
+    }
 
     if !opts.skip_cost {
         if state.economy.is_bankrupt() {
@@ -588,7 +645,8 @@ pub(crate) fn check_placement_with(
         }
         _ => EntranceStatus::Blocked,
     };
-    if !matches!(def.role, BuildingRole::WallSegment | BuildingRole::Gate) {
+    // Wall pieces and towers on a wall line are entered from any side and need no road.
+    if def.needs_road() {
         match check.entrance_status {
             EntranceStatus::Road => {}
             EntranceStatus::Free => check.warnings.push(PlacementWarning::NoRoadAccess),

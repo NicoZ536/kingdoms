@@ -388,7 +388,7 @@ fn try_birth(state: &mut GameState, defs: &Defs, id: HouseholdId, events: &mut V
         _ => String::from("Ein Kind wurde geboren."),
     };
     let at = state.buildings.get(home).map(|b| b.entrance());
-    let mut n = Notification::new(Severity::Good, text);
+    let mut n = Notification::new(Severity::Good, text).for_building(home);
     if let Some(at) = at {
         n = n.at(at);
     }

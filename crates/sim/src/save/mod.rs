@@ -64,11 +64,14 @@ pub const SAVE_MAGIC: [u8; 8] = *b"KNGDMSAV";
 /// (event or the player's festival) and the day of the last festival, the relation memory
 /// „Festgäste“, the tick of the last AI proposal (inbox pacing); 17 = the dry spell of the
 /// weather (days without rain, read by the drought event) and the event behind a forced
-/// weather. Versions 1–16 are internal
+/// weather; 18 = spells of reported waiting states (production status reported and since when
+/// it is over, storages without carriers, the population's hunger/cold/homeless/fuel topics
+/// incl. the new topic „fuel shortage“, the shrinking treasury) and restock transports
+/// (`TransportKind::Restock`). Versions 1–17 are internal
 /// development builds only and are not migrated.
-pub const SAVE_FORMAT_VERSION: u32 = 17;
+pub const SAVE_FORMAT_VERSION: u32 = 18;
 /// Oldest format version that can still be loaded (via migrations).
-pub const MIN_SUPPORTED_FORMAT_VERSION: u32 = 17;
+pub const MIN_SUPPORTED_FORMAT_VERSION: u32 = 18;
 /// Recommended file extension.
 pub const SAVE_EXTENSION: &str = "ksav";
 /// Version of the simulation crate, recorded in every save for diagnostics.

@@ -32,6 +32,8 @@ use crate::ui::widgets::{Mark, mark, mini_bar, rating_color, section_header};
 
 /// Default radius (tiles) of an area to defend.
 pub const DEFAULT_AREA_RADIUS: u8 = 6;
+/// Width of the strength column („20 Kämpfer · 6 Milizen, …“) of the threats.
+const THREAT_STRENGTH_WIDTH: f32 = 250.0;
 
 /// A military building with the units it trains.
 struct Barracks {
@@ -231,7 +233,10 @@ impl MilitaryTab {
         }
         for (i, t) in r.threats.iter().enumerate() {
             let color = t.kingdom.and_then(|k| state.diplomacy().kingdom(k)).map(|k| k.color());
-            table::row(ui, ("threat", t.warband), ROW_HEIGHT + 8.0, i % 2 == 1, false, |ui| {
+            // The composition of a mixed army is long: it wraps instead of ending in „…“.
+            let strength = RichText::new(format!("{} · {}", count(u32::from(t.size), "Kämpfer", "Kämpfer"), t.composition_text)).small();
+            let height = table::wrapped_height(ui, strength.clone(), THREAT_STRENGTH_WIDTH, ROW_HEIGHT + 8.0);
+            table::row(ui, ("threat", t.warband), height, i % 2 == 1, false, |ui| {
                 table::cell(ui, 230.0, CellAlign::Left, |ui| {
                     match color {
                         Some(c) => {
@@ -243,7 +248,7 @@ impl MilitaryTab {
                     }
                     ui.label(RichText::new(&t.kind_text).strong().color(Palette::BAD));
                 });
-                table::text(ui, 250.0, CellAlign::Left, RichText::new(format!("{} · {}", count(u32::from(t.size), "Kämpfer", "Kämpfer"), t.composition_text)).small());
+                table::wrapped(ui, THREAT_STRENGTH_WIDTH, strength);
                 table::text(ui, 200.0, CellAlign::Left, format!("{} · {}", t.stage_text, t.eta_text));
                 table::text(ui, 160.0, CellAlign::Left, RichText::new(format!("Ziel: {}", t.target_name)).small());
                 table::cell(ui, 100.0, CellAlign::Right, |ui| {

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{AiWar, Kingdom, KingdomId, Memory, MemoryCause, RelationState, TreatyKind, kingdom_strength, setup};
 use crate::defs::Defs;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::TICKS_PER_DAY;
 
@@ -201,7 +201,7 @@ pub(crate) fn expire_treaties(state: &mut GameState, defs: &Defs, events: &mut V
             let text = format!("{} mit {name} ist ausgelaufen.", kind.display_name());
             state.diplomacy.record(tick, Some(id), None, text.clone());
             events.push(SimEvent::TreatyEnded { kingdom: id, treaty: kind, broken: false });
-            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(seat)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Diplomacy).at(seat)));
         }
     }
     announce_states(state, defs, events);
@@ -224,7 +224,7 @@ pub(crate) fn announce_states(state: &mut GameState, defs: &Defs, events: &mut V
         state.diplomacy.record(tick, Some(id), None, text.clone());
         events.push(SimEvent::RelationStateChanged { kingdom: id, state: now });
         let severity = if worse { Severity::Warning } else { Severity::Good };
-        events.push(SimEvent::Notification(Notification::new(severity, text).at(seat)));
+        events.push(SimEvent::Notification(Notification::new(severity, text).with_kind(NotificationKind::Diplomacy).at(seat)));
     }
 }
 
@@ -291,7 +291,7 @@ fn run_ai_wars(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEvent>) {
         let text = format!("Frieden zwischen {wn} und {ln}: {ln} tritt Land ab und zahlt Entschädigung.");
         state.diplomacy.record(tick, Some(winner), Some(loser), text.clone());
         events.push(SimEvent::AiPeace { winner, loser });
-        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(seat)));
+        events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Diplomacy).at(seat)));
     }
     for i in ended.into_iter().rev() {
         state.diplomacy.ai_wars.remove(i);
@@ -333,7 +333,7 @@ pub(crate) fn start_ai_war(state: &mut GameState, attacker: KingdomId, defender:
     let text = format!("{an} hat {dn} den Krieg erklärt.");
     state.diplomacy.record(tick, Some(attacker), Some(defender), text.clone());
     events.push(SimEvent::AiWarStarted { attacker, defender });
-    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(seat)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Diplomacy).at(seat)));
 }
 
 #[cfg(test)]

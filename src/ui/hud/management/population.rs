@@ -14,7 +14,7 @@ use kingdoms_sim::population::{CitizenId, DayCounts, DeathCause, HappinessFactor
 use kingdoms_sim::report::{self, FestivalReport, HappinessReport, NeedsSummary, PopulationSummary};
 
 use super::table::{self, CellAlign, ROW_HEIGHT};
-use super::{Cached, TabContext, card_row, command, day_label, day_title, hint, select};
+use super::{Cached, TabContext, card_row, columns, command, day_label, day_title, hint, select};
 use crate::ui::chart::{Chart, Series, ValueFormat};
 use crate::ui::hud::HudAction;
 use crate::ui::hud::format::{decimal, int};
@@ -200,21 +200,21 @@ impl PopulationTab {
             ],
         );
         ui.add_space(6.0);
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             stages(&mut cols[0], s);
             movement(&mut cols[1], s);
         });
         section_header(ui, "Verlauf");
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             history_charts(cols, &s.history);
         });
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             needs(&mut cols[0], &data.needs, input.session.defs().rules().population.need_met_threshold);
             happiness(&mut cols[1], &data.happiness);
         });
         ui.add_space(4.0);
         festival_box(ui, ctx, &data.festival, actions);
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             let rules = &input.session.defs().rules().population.wealth;
             wealth(&mut cols[0], s, &data.happiness, rules);
             taverns(&mut cols[1], s.taverns.open, s.taverns.stocked);

@@ -12,7 +12,12 @@
 //!   hour from any reachable storage.
 //! * **Pantry:** about `pantry_days` of consumption (enough until the next evening's errand);
 //!   taken units count as consumption in the resource statistics (`consumed` and
-//!   `household`). Committed construction material is never taken.
+//!   `household`). Committed construction material is not taken – except fuel by a household
+//!   that has none on a cold day (a day's worth; heating comes first, game_design §6.1).
+//! * **Heating comes first:** in the heating season workshops get fuel only beyond
+//!   `population.fuel_reserve_days` of the households' demand (`crate::logistics::planner`); a
+//!   household out of fuel goes for some at once; fuel for fewer than
+//!   `population.fuel_warning_days` is reported once per spell.
 //! * **Use per hour:** food by saturation (§4: adults `food_per_day`, children
 //!   `child_food_percent`, winter `winter_food_consumption_percent`), eaten from the kind with
 //!   the most saturation left (so variety is kept); fuel by heating value on cold days (below
@@ -25,7 +30,7 @@
 use crate::buildings::{BuildingId, FRESH_WATER_RADIUS};
 use crate::defs::{Defs, GoodsRequirement, ResourceCategory, ServiceKind};
 use crate::economy::storage;
-use crate::event::{Notification, SimEvent, Severity};
+use crate::event::{Notification, NotificationKind, SimEvent, Severity};
 use crate::grid::TileRect;
 use crate::state::GameState;
 use crate::time::{Season, TICKS_PER_HOUR};
@@ -310,6 +315,100 @@ pub(crate) fn pantry_without_food(state: &GameState, defs: &Defs, id: HouseholdI
     })
 }
 
+/// True if a fuel (wood, coal) is in reach of an errand at `place`: at a market anywhere in
+/// the kingdom stock, at a storage in it (construction material included: heating comes
+/// first, docs/game_design.md §6.1).
+pub(crate) fn offers_fuel(state: &GameState, defs: &Defs, place: BuildingId) -> bool {
+    let Some(b) = state.buildings.get(place) else { return false };
+    let market = defs.buildings().get(b.kind().index()).is_some_and(|d| d.services.iter().any(|s| s.kind == ServiceKind::Market));
+    defs.resources()
+        .iter()
+        .filter(|r| r.heating_value > 0.0)
+        .any(|r| if market { state.economy.stock().get(r.id) > 0 } else { b.inventory.get(r.id) > 0 })
+}
+
+/// True if housed household `id` needs heating today and its pantry holds no fuel (its runner
+/// goes for some at once, outside working time).
+pub(crate) fn pantry_without_fuel(state: &GameState, defs: &Defs, id: HouseholdId) -> bool {
+    state.weather.needs_heating(defs.rules(), state.clock)
+        && state.population.household(id).is_some_and(|h| {
+            h.home.is_some() && !h.pantry.iter().any(|p| defs.resources().get(p.resource.index()).is_some_and(|r| r.heating_value > 0.0))
+        })
+}
+
+/// True on days the households heat or stock up for it: cold days (below
+/// `climate.temperature.heating_below_c`) and the last day of autumn.
+pub(crate) fn heating_season(state: &GameState, defs: &Defs) -> bool {
+    let clock = state.clock;
+    state.weather.needs_heating(defs.rules(), clock)
+        || (clock.season() == Season::Autumn && clock.day_of_season() == crate::time::DAYS_PER_SEASON)
+}
+
+/// Heating value all households burn per day at today's heating demand (in thousandths; on
+/// the last day of autumn at plain demand).
+pub fn heating_demand_milli_per_day(state: &GameState, defs: &Defs) -> u64 {
+    let rules = defs.rules();
+    let percent = if state.weather.needs_heating(rules, state.clock) { u64::from(state.weather.heating_percent(rules)) } else { 100 };
+    let residents = state.population.len() as u64;
+    (f64::from(rules.population.fuel_per_resident_day) * 1000.0).round() as u64 * residents * percent / 100
+}
+
+/// Heating value of the fuel in the kingdom stock, in thousandths (construction material
+/// included, docs/game_design.md §6.1).
+pub fn fuel_stock_milli(state: &GameState, defs: &Defs) -> u64 {
+    defs.resources()
+        .iter()
+        .filter(|r| r.heating_value > 0.0)
+        .map(|r| u64::from(state.economy.stock().get(r.id)) * heating_pm(defs, r.id))
+        .sum()
+}
+
+/// Heating value (thousandths) the households keep from the workshops: in the heating season
+/// `population.fuel_reserve_days` days of their demand, otherwise none (docs/game_design.md
+/// §6.1 Heizen geht vor).
+pub(crate) fn fuel_reserve_milli(state: &GameState, defs: &Defs) -> u64 {
+    if !heating_season(state, defs) {
+        return 0;
+    }
+    let days = f64::from(defs.rules().population.fuel_reserve_days);
+    (heating_demand_milli_per_day(state, defs) as f64 * days).round() as u64
+}
+
+/// Warns once per spell (docs/game_design.md §2 Meldungen) when, in the heating season, the
+/// fuel in stock lasts fewer than `population.fuel_warning_days` days at today's demand.
+pub(crate) fn warn_fuel_shortage(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEvent>) {
+    if !heating_season(state, defs) {
+        return;
+    }
+    let demand = heating_demand_milli_per_day(state, defs);
+    if demand == 0 {
+        return;
+    }
+    let stock = fuel_stock_milli(state, defs);
+    let warning = (demand as f64 * f64::from(defs.rules().population.fuel_warning_days)).round() as u64;
+    if stock >= warning {
+        return;
+    }
+    let text = fuel_shortage_text(stock / demand, state.weather.needs_heating(defs.rules(), state.clock));
+    let note = Notification::new(Severity::Warning, text).with_kind(NotificationKind::NoFuel);
+    let tick = state.clock.tick;
+    state.population.notify_waiting(defs, Notice::FuelShortage, tick, note, events);
+}
+
+/// German text of the fuel warning: `days` whole days of fuel left; `cold`: it is cold today
+/// (else the winter is about to begin).
+pub(crate) fn fuel_shortage_text(days: u64, cold: bool) -> String {
+    let lasts = match days {
+        0 => "nicht einmal mehr einen Tag".to_owned(),
+        1 => "nur noch etwa einen Tag".to_owned(),
+        n => format!("nur noch etwa {n} Tage"),
+    };
+    let head = if cold { "Brennholz wird knapp" } else { "Der Winter naht" };
+    format!(
+        "{head}: Holz und Kohle reichen zum Heizen {lasts}. Baut Holzfäller und Förster oder kauft Holz – Werkstätten bekommen Brennstoff nur über den Heizvorrat hinaus."
+    )
+}
+
 /// Storages a household takes goods from, nearest to `rect` first: with a market all reachable
 /// storages, otherwise only those whose carriers reach the house (homeless: all).
 fn supply_sources(ctx: &TickContext, rect: &TileRect, has_market: bool, homeless: bool) -> Vec<BuildingId> {
@@ -415,6 +514,17 @@ fn restock(state: &mut GameState, defs: &Defs, ctx: &mut TickContext, id: Househ
                 break;
             };
             have += heating_pm(defs, r);
+        }
+        // Heating comes first (docs/game_design.md §6.1): a household without any fuel takes
+        // a day's worth even from fuel promised to construction sites (they wait for more).
+        if have == 0 && cold {
+            let day = fuel_hour * 24;
+            let mut n = 0;
+            while have < day && n < MAX_UNITS_PER_RESTOCK {
+                n += 1;
+                let Some(r) = fuels.iter().copied().find(|r| take_committed_unit(state, ctx, &sources, id, *r)) else { break };
+                have += heating_pm(defs, r);
+            }
         }
     }
     if has_market {
@@ -545,6 +655,8 @@ fn hourly(state: &mut GameState, defs: &Defs, ctx: &mut TickContext, id: Househo
                 && sources.iter().any(|s| state.buildings.get(*s).is_some_and(|b| b.inventory.get(r.id) > 0))
         })
     };
+    // Hunger and cold are reported once per spell (docs/game_design.md §2 Meldungen); the
+    // houses show them meanwhile (`report::house_report`, heating).
     if !fed && !shopping_soon {
         let mut n = Notification::new(
             Severity::Danger,
@@ -553,7 +665,10 @@ fn hourly(state: &mut GameState, defs: &Defs, ctx: &mut TickContext, id: Househo
         if let Some(at) = at {
             n = n.at(at);
         }
-        state.population.notify(Notice::Famine, tick, n, events);
+        if let Some(home) = home {
+            n = n.for_building(home);
+        }
+        state.population.notify_waiting(defs, Notice::Famine, tick, n, events);
     }
     if !fuel_ok {
         let mut n = Notification::new(
@@ -563,7 +678,10 @@ fn hourly(state: &mut GameState, defs: &Defs, ctx: &mut TickContext, id: Househo
         if let Some(at) = at {
             n = n.at(at);
         }
-        state.population.notify(Notice::NoFuel, tick, n, events);
+        if let Some(home) = home {
+            n = n.for_building(home);
+        }
+        state.population.notify_waiting(defs, Notice::NoFuel, tick, n, events);
     }
 }
 
@@ -621,6 +739,34 @@ fn take_unit(
                 *a -= 1;
             }
             pay_for(state, household, resource, payment, true);
+            if let Some(h) = state.population.households.get_mut(household) {
+                h.add_to_pantry(resource, 1000);
+            }
+            state.economy.record_household_use(resource, 1);
+            ctx.stock_changed = true;
+            return true;
+        }
+    }
+    false
+}
+
+/// Like [`take_unit`] for fuel, but also from units committed to construction sites (a
+/// household without fuel on a cold day; docs/game_design.md §6.1 Heizen geht vor).
+fn take_committed_unit(
+    state: &mut GameState,
+    ctx: &mut TickContext,
+    sources: &[BuildingId],
+    household: HouseholdId,
+    resource: crate::defs::ResourceId,
+) -> bool {
+    for s in sources {
+        if let Some(b) = state.buildings.get_mut(*s)
+            && b.inventory.remove(resource, 1) == 1
+        {
+            if let Some(a) = ctx.available.as_mut().and_then(|a| a.get_mut(resource.index())) {
+                *a = a.saturating_sub(1);
+            }
+            pay_for(state, household, resource, Payment::Basic, true);
             if let Some(h) = state.population.households.get_mut(household) {
                 h.add_to_pantry(resource, 1000);
             }

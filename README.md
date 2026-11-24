@@ -17,12 +17,12 @@ Kunst; Audio liegt noch nicht bei. Die Bilder stammen aus dem Release-Build in 1
 | [Hauptmenü](docs/screenshots/01_hauptmenue.png) | Hauptmenü mit „Fortsetzen“ und lebender Stadt im Hintergrund |
 | [Neues Spiel](docs/screenshots/02_neues_spiel.png) | Seed, Kartengröße, Schwierigkeit, Ereignisse, Szenario und Landschaftsvorschau |
 | [Spielstart](docs/screenshots/03_spielstart.png) | Rathaus, zwei Holzhäuser und zwölf Siedler am ersten Morgen (Seed 7) |
-| [Stadt im Sommer](docs/screenshots/04_stadt_sommer.png) | Entwickler-Stadt im Sommer des zweiten Jahres mit Markt, Feldern und Höfen; rechts die angedockte Anfragekarte eines Reichs über den Meldungen |
+| [Stadt im Sommer](docs/screenshots/04_stadt_sommer.png) | Entwickler-Stadt im Sommer des zweiten Jahres mit Markt, Feldern und Höfen; rechts die angedockte Anfragekarte eines Reichs über den Meldungskarten (Überschrift: Art der Meldung) |
 | [Winternacht](docs/screenshots/05_stadt_winter_nacht.png) | Dieselbe Stadt in einer verschneiten Winternacht: Schnee auf Dächern und auf der Minikarte, Rauch, beleuchtete Fenster |
 | [Reichsverwaltung · Wirtschaft](docs/screenshots/06_reichsverwaltung_wirtschaft.png) | Angebot und Nachfrage je Warengruppe, Engpässe, Überschüsse und Produktionsketten |
 | [Forschung](docs/screenshots/07_forschung.png) | Technologiebaum mit laufender und vorgemerkter Forschung |
 | [Diplomatie](docs/screenshots/08_diplomatie.png) | Anfragen der Reiche, Beziehungen (Balken mit Skala −100 … +100) und Handlungen |
-| [Kampf](docs/screenshots/09_militaer_kampf.png) | Eine Räuberbande (karminrot, Beschriftung über der Gruppe) greift den Bogenschützenposten am Rathaus an (Funken und Staub) |
+| [Kampf am Mauerring](docs/screenshots/09_militaer_kampf.png) | Das Heer von Hohenmark (karminrot, Beschriftung über der Gruppe) hat ein Tor des geschlossenen Mauerrings durchbrochen; das Tor brennt, Verteidiger kämpfen davor (Seed 31, `KINGDOMS_DEV_WALLS`) |
 | [Handel und Karawanen](docs/screenshots/10_handel_karawane.png) | Reiter Handel: Handelsaufträge mit geöffneter Bearbeitung, Karawanen unterwegs und Handelspartner |
 | [Ereignis](docs/screenshots/11_ereignis.png) | Entscheidungskarte „Brand“ mit Brandherd, Frist und vorhergesagter Wirkung jeder Wahl |
 | [Bürgerfenster](docs/screenshots/12_buerger.png) | Eine Marktfrau mit Familie, Freunden, Ersparnissen, Arbeit und Zufriedenheit |
@@ -174,13 +174,13 @@ Standardwerte zurück.
   darunter die Militärgebäude zum Bauen.
 * **Rechts:** Ereignisse (blinkt rot, solange eine Entscheidung offen ist; öffnet die
   Entscheidung, sonst diplomatische Anfragen, Wirkungen und Verlauf; ein blauer Zähler nennt
-  offene Anfragen), Meldungen (alle Benachrichtigungen der Sitzung, Zähler für neue), Aufgaben
+  offene Anfragen), Meldungen (alle Benachrichtigungen der Sitzung, Auswahl „Art“, Zähler für neue), Aufgaben
   (Herrscherrang, Ansehen, Wohlstand, die Anforderungen des nächsten Rangs mit Fortschritt und
   die erreichten Ränge; ein Balken am Knopf zeigt den Fortschritt), Übersicht (Bevölkerung,
   Zufriedenheit, Schatz und Tagesbilanz, Nahrung mit Reichweite, Forschung, Herrscherrang,
   Gefahren – Kriege, Feinde mit Ankunftszeit, Anfragen, Sold, Geld, Nahrung –, letzte Ereignisse;
   jede Zeile öffnet das passende Fenster oder springt zum Ort). Daneben das Info-Fenster der
-  Auswahl; neue Meldungen erscheinen als Karten links davon.
+  Auswahl; neue Meldungen erscheinen als Karten links davon (Überschrift: Art der Meldung, bei allgemeinen Meldungen die Schwere).
 * **Feinde:** Räuberbanden und feindliche Heere zeigen rote Marken am Bildschirmrand (Art, Größe,
   Ankunftszeit bzw. „Greift an“/„Auf der Flucht“, Pfeil zur Richtung); ein Klick springt hin. Auf
   der Minikarte pulsieren sie rot, eigene Kompanien sind goldene, Karawanen farbige Punkte.
@@ -319,7 +319,7 @@ Standardwerte zurück.
 | E | Ereignis-Entscheidung zeigen/ausblenden (ohne offene Entscheidung: Ereignisse mit Wirkungen und Verlauf) |
 | Esc | schließt von innen nach außen: Werkzeugschritt, Folgen, Ereignis-Entscheidung, Seitenfenster bzw. Bauleiste, Reichsverwaltung, Bürgerfenster, Auswahl, sonst Pausenmenü |
 | Klick auf eine Zeile der Reichsverwaltung | Betrieb, Lager, Haus oder Farm auswählen und hinschauen; Waren öffnen ihren Verlauf in der Statistik; Bürger (Bevölkerung) und Bewohner (Info-Fenster eines Hauses) öffnen das Bürgerfenster |
-| Klick auf eine Meldung (Karte rechts oder Liste „Meldungen“) | Kamera springt zum Ort der Meldung |
+| Klick auf eine Meldung (Karte rechts oder Liste „Meldungen“) | wählt das Gebäude der Meldung aus und zeigt es, solange es steht; sonst springt die Kamera zum Ort der Meldung |
 | G | Raster ein/aus |
 | T | Gebietsgrenze ein/aus |
 | H / Pos1 | Zum Rathaus springen |
@@ -365,7 +365,7 @@ cargo run -p kingdoms_sim --release --example worldmap -- <seed> medium world.pp
 Jede der folgenden Spielvariablen (`KINGDOMS_SEED`, `KINGDOMS_WORLD_SIZE`, `KINGDOMS_WARP_TICKS`,
 `KINGDOMS_DEV_*`, `KINGDOMS_FOCUS`, `KINGDOMS_ZOOM`, `KINGDOMS_SELECT`, `KINGDOMS_TOOL`,
 `KINGDOMS_CURSOR`, `KINGDOMS_MENU`, `KINGDOMS_SPEED`, `KINGDOMS_WINDOW`, `KINGDOMS_PANEL`,
-`KINGDOMS_QUICK`; auch `KINGDOMS_DEV_ARMY`, `KINGDOMS_DEV_WALLS`, `KINGDOMS_DEV_THREAT`, `KINGDOMS_DEV_TRADE`, `KINGDOMS_DEV_UPGRADE`)
+`KINGDOMS_QUICK`; auch `KINGDOMS_DEV_ARMY`, `KINGDOMS_DEV_WALLS`, `KINGDOMS_DEV_THREAT`, `KINGDOMS_DEV_TRADE`, `KINGDOMS_DEV_UPGRADE`, `KINGDOMS_DEV_CASE`)
 startet direkt ein Spiel statt des Hauptmenüs, damit Skripte wie bisher laufen.
 
 | Variable | Wirkung |
@@ -380,10 +380,11 @@ startet direkt ein Spiel statt des Hauptmenüs, damit Skripte wie bisher laufen.
 | `KINGDOMS_DEV_EVENT=<ereignis>[:<wahl>]` | startet nach den Warp-Ticks mit `DebugTriggerEvent` ein Ereignis (`fire`, `merchant_visit`, … aus `data/events/events.ron`, Bedingungen gelten nicht) und entscheidet es mit `:<wahl>` sofort (0 = Standardwahl) – z. B. `fire:0` für Ruinen; das Log nennt den Ort |
 | `KINGDOMS_DEV_RESEARCH=<tech>,<tech>,…` | reiht beim Start diese Technologien mit `QueueResearch` ein (z. B. `grain_farming,improved_plows`) |
 | `KINGDOMS_DEV_ARMY=<n>` | stellt während der Warp-Ticks ein Heer von `n` Soldaten (1–60) auf – nur über Kommandos: `DebugUnlockAllResearch`, `DebugGrant` (Gold, Ausrüstung, Brot), `DebugSpawnHouseholds`, Kaserne und Bogenschützenposten am Rathaus (`PlaceBuildingWithAccess`), `Recruit`, `CreateCompany`, die erste Kompanie patrouilliert ums Rathaus. Mit `KINGDOMS_WARP_TICKS=9600` (2 Tage) sind die ersten Soldaten bereit |
-| `KINGDOMS_DEV_WALLS=<radius>` | zieht während der Warp-Ticks eine Stadtmauer im Quadrat `radius` Felder (4–24) um das Rathaus – nur über Kommandos: `DebugUnlockAllResearch`, `DebugGrant` (Gold, Stein, Bretter), ein Straßenring ein Feld innerhalb und eine Straße zum Ort (`BuildRoad`; Baustellen brauchen eine Straße am Eingang), Mauerstücke mit Eingang nach innen (`PlaceBuilding`; kreuzende Straßen vorher `RemoveRoad`), danach Tore auf Straßenkreuzungen und in der Mitte jeder Seite ohne eine. Die vier Ecken bleiben offen (kein Eingang erreicht eine Straße); abgelehnte Stellen nennt das Log. Für Belagerungen, z. B. `KINGDOMS_WORLD_SIZE=small KINGDOMS_DEV_ARMY=10 KINGDOMS_DEV_WALLS=8 KINGDOMS_WARP_TICKS=19200 KINGDOMS_DEV_THREAT=1:30` |
+| `KINGDOMS_DEV_WALLS=<radius>` | zieht während der Warp-Ticks einen geschlossenen Mauerring im Quadrat `radius` Felder (4–24) um das Rathaus – nur über Kommandos: `DebugUnlockAllResearch`, `DebugGrant` (Gold, Stein, Bretter), Mauerstücke auf jedem Feld des Rings samt der vier Ecken mit Eingang nach innen (`PlaceBuilding`; kreuzende Straßen vorher `RemoveRoad`), danach Tore auf Straßenkreuzungen (nicht in den Ecken) und in der Mitte jeder Seite ohne eine. Mauer und Tore brauchen keine Straße: Die Bauarbeiter bauen von innen, die Ecken von außen durch die Tore; abgelehnte Stellen nennt das Log. Für Belagerungen, z. B. `KINGDOMS_WORLD_SIZE=small KINGDOMS_DEV_ARMY=10 KINGDOMS_DEV_WALLS=8 KINGDOMS_WARP_TICKS=19200 KINGDOMS_DEV_THREAT=1:30` |
 | `KINGDOMS_DEV_THREAT=banditen\|<reich 1–7>[:<größe>]` | schickt nach den Warp-Ticks Feinde (`DebugSpawnThreat`, Ankunft binnen einer Stunde): eine Räuberbande oder das Heer des n-ten Reiches (erklärt ihm vorher den Krieg); Größe 1–120, Standard 12 |
 | `KINGDOMS_DEV_TRADE=1` | richtet während der Warp-Ticks Handel ein: alle Technologien, Gold und Waren, Siedler, ein Handelskontor am Rathaus, Aufträge passend zum ersten Reich mit Handelszugang und eine eigene Karawane dorthin (mit `KINGDOMS_WARP_TICKS=13760` steht die erste fremde Karawane am Kontor) |
 | `KINGDOMS_DEV_UPGRADE=<Stunden>` | baut nach den Warp-Ticks jedes fertige Gebäude mit einer nächsten Stufe aus (Häuser ausgenommen; Kosten per `DebugGrant`) und lässt danach 1–96 Spielstunden laufen; das Protokoll nennt jedes Gebäude im Ausbau mit Eingangs-Tile (z. B. `KINGDOMS_DEV_SETTLEMENT=1 KINGDOMS_DEV_UNLOCK=1 KINGDOMS_WARP_TICKS=48000 KINGDOMS_DEV_UPGRADE=24` → zwei Große Sägewerke) |
+| `KINGDOMS_DEV_CASE=gasthaus\|einarbeitung\|lagerferne` | stellt nach den Warp-Ticks einen seltenen Zustand her und zeigt ihn – nur über Kommandos und Entwicklergaben (`DebugUnlockAllResearch`, `DebugGrant`, `DebugSpawnHouseholds`, `PlaceBuildingWithAccess`); das Spiel läuft, bis der Zustand erreicht ist (höchstens 4 Tage; das Log nennt Zeitpunkt und Tiles). `gasthaus`: Gasthaus am Rathaus mit Bier im Vorrat, Halt zwischen 19 und 21 Uhr, sobald Gäste hingehen; das Gasthaus ist ausgewählt (Info-Fenster „Ausschank“). `einarbeitung`: zwei Sägewerke, besetzt mit zugezogenen Fachkräften ohne Erfahrung; Halt während der Schicht, das Sägewerk ist ausgewählt (Zeile „Einarbeitung“). `lagerferne`: ein Wachturm am Rand des Gebiets erweitert es über die Reichweite der Rathaus-Träger; Halt, sobald er steht, mit dem Bauwerkzeug „Holzfällerhütte“ über einem Bauplatz, den kein Lager erreicht (bernsteinfarbener Geist). `KINGDOMS_FOCUS`, `KINGDOMS_SELECT`, `KINGDOMS_TOOL` und `KINGDOMS_CURSOR` haben Vorrang; z. B. `KINGDOMS_DEV_CASE=gasthaus KINGDOMS_SPEED=pause KINGDOMS_ZOOM=1.6` |
 | `KINGDOMS_DEV_SHOWCASE=1` | Gebäudeschau statt des normalen Starts: ergänzt die Spieldaten im Speicher um ein Szenario `dev_showcase` – eine Burg und darum je ein fertiges, besetztes Gebäude jeder Art (erst Produktion und Landwirtschaft, dann öffentliche und militärische Gebäude, außen je ein Haus jeder Stufe und Stadthäuser für alle Arbeiter), alle Technologien, die Zutaten aller Rezepte, Nahrung und Brennholz im Lager, keine Rivalen und keine Zufallsereignisse. Die Simulation stellt jedes Gebäude an den nächsten erlaubten Platz auf dem Land der Burg (Minen und Gruben brauchen ihr Vorkommen, die Fischerei Wasser); das Log nennt jedes Gebäude mit Eingangs-Tile (für `KINGDOMS_FOCUS`) und die Arten ohne Platz. Bei Seed 7 fehlen Sandgrube, Eisen-, Kohle- und Goldmine; bei `KINGDOMS_SEED=331` steht seit den 20 neuen Ausbaustufen jedes Gebäude außer der Sandgrube (die Ringe reichen bis zum Rand des Burglands). Mit `KINGDOMS_WARP_TICKS=5600` (Tag 2, 10 Uhr) arbeiten die Betriebe: Mühlenflügel drehen sich, Essen flackern, Sammler arbeiten mit ihrem Werkzeug |
 | `KINGDOMS_DEV_CROWD=<n>` | Messstadt mit `n` Siedlern (50–6000) statt des normalen Starts: ergänzt die Spieldaten im Speicher um ein Szenario `dev_crowd` (dichte Stadt aus Stadthäusern, Holzfällern und Vorratsspeichern um eine Burg, Nahrung, Holz und Gold für einige Tage), die Simulation startet es wie jedes Szenario. Zum Messen der Bildzeit vieler Läufer (F3, „citizens“), z. B. `=2000` mit `KINGDOMS_WARP_TICKS=2400` (18:00, Besorgungsgang). Spielstände daraus laden nur im selben Modus |
 | `KINGDOMS_SPEED=pause\|1\|2\|4` | Spieltempo beim Start (`pause`: angehalten genau nach den Warp-Ticks, z. B. für Screenshots zu einer bestimmten Uhrzeit) |

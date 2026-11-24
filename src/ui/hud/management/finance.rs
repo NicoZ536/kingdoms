@@ -12,7 +12,7 @@ use kingdoms_sim::defs::Defs;
 use kingdoms_sim::report::{self, CourtReport, FinanceReport};
 
 use super::table::{self, CellAlign, ROW_HEIGHT};
-use super::{Cached, Tab, TabContext, card_row, command, day_label, day_title, hint};
+use super::{Cached, Tab, TabContext, card_row, columns, command, day_label, day_title, hint};
 use crate::ui::chart::{Chart, Series, ValueFormat};
 use crate::ui::hud::HudAction;
 use crate::ui::hud::format::{decimal, int, signed_gold_milli};
@@ -112,7 +112,7 @@ impl FinanceTab {
         history_chart(ui, &r.history);
         ui.add_space(6.0);
         let tax_happiness = data.tax_happiness;
-        ui.columns(2, |cols| {
+        columns(ui, 2, |cols| {
             ledger_table(&mut cols[0], r);
             tax_box(&mut self.dragging, &mut cols[1], ctx, r, tax_happiness, actions);
             cols[1].add_space(6.0);

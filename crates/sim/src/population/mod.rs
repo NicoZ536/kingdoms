@@ -41,7 +41,7 @@ mod needs;
 pub mod routine;
 pub mod spatial;
 mod stats;
-mod supply;
+pub(crate) mod supply;
 pub mod wealth;
 pub mod friends;
 #[cfg(test)]
@@ -57,7 +57,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::buildings::BuildingId;
 use crate::defs::{Defs, JobCategory, NeedKind, PopulationRules, ResourceAmount, ResourceId};
-use crate::event::{Notification, SimEvent};
+use crate::event::{Notification, NotificationKind, SimEvent};
 use crate::ids::{Arena, Id};
 use crate::state::GameState;
 use crate::time::{DAYS_PER_SEASON, TICKS_PER_HOUR};
@@ -93,7 +93,7 @@ pub use stats::{DayCounts, MAX_DAY_COUNT, PopulationDay, PopulationStats};
 pub(crate) use supply::ServiceIndex;
 pub use wealth::{WealthClass, wealth_class};
 pub use movement::{
-    Destination, Motion, NO_PATH_NOTICE_TICKS, Purpose, SUBTILE, SubPos, Traveler, TravelerId, TripPhase, WalkerId, Walking,
+    Destination, Motion, Purpose, SUBTILE, SubPos, Traveler, TravelerId, TripPhase, WalkerId, Walking,
     entry_point,
 };
 pub(crate) use movement::run_movement;
@@ -808,15 +808,32 @@ pub(crate) enum Notice {
     Death,
     Downgrade,
     Starvation,
+    /// Fuel for fewer than `population.fuel_warning_days` days.
+    FuelShortage,
 }
 
 impl Notice {
-    const COUNT: usize = 9;
+    const COUNT: usize = 10;
+
+    /// Kind of the notifications of the topic.
+    const fn kind(self) -> NotificationKind {
+        match self {
+            Notice::Famine => NotificationKind::Famine,
+            Notice::NoFuel | Notice::FuelShortage => NotificationKind::NoFuel,
+            Notice::Homeless => NotificationKind::Homeless,
+            Notice::Immigration
+            | Notice::Emigration
+            | Notice::Birth
+            | Notice::Death
+            | Notice::Downgrade
+            | Notice::Starvation => NotificationKind::Population,
+        }
+    }
 
     /// Minimum game hours between two notifications of the topic.
     const fn cooldown_hours(self) -> u64 {
         match self {
-            Notice::Famine | Notice::NoFuel | Notice::Homeless => 6,
+            Notice::Famine | Notice::NoFuel | Notice::Homeless | Notice::FuelShortage => 6,
             Notice::Immigration | Notice::Birth | Notice::Death => 3,
             Notice::Emigration | Notice::Downgrade | Notice::Starvation => 2,
         }
@@ -835,6 +852,9 @@ pub struct Population {
     pub(crate) stats: PopulationStats,
     /// Tick of the last notification per [`Notice`] topic (`u64::MAX` = never).
     notices: Vec<u64>,
+    /// Spells of the waiting-state topics (hunger, cold, homelessness) by topic index: reported
+    /// once per spell ([`Population::notify_waiting`]).
+    waiting: crate::notices::Spells<u8>,
     /// Path requests, travellers and the derived spatial index of walkers.
     pub(crate) walking: Walking,
     /// Building revision the movement step last looked at (derived, not saved).
@@ -1000,8 +1020,12 @@ impl Population {
         if values.is_empty() { 0 } else { (values.iter().sum::<u32>() / values.len() as u32) as u16 }
     }
 
-    /// Emits `notification` unless a notification of the topic was sent within its cooldown.
-    pub(crate) fn notify(&mut self, topic: Notice, tick: u64, notification: Notification, events: &mut Vec<SimEvent>) {
+    /// Emits `notification` unless a notification of the topic was sent within its cooldown;
+    /// without a kind of its own it gets the topic's ([`Notice::kind`]).
+    pub(crate) fn notify(&mut self, topic: Notice, tick: u64, mut notification: Notification, events: &mut Vec<SimEvent>) {
+        if notification.kind == NotificationKind::General {
+            notification.kind = topic.kind();
+        }
         if self.notices.len() != Notice::COUNT {
             self.notices = vec![u64::MAX; Notice::COUNT];
         }
@@ -1012,6 +1036,16 @@ impl Population {
         }
         *slot = tick;
         events.push(SimEvent::Notification(notification));
+    }
+
+    /// Emits `notification` about a lasting waiting state of the kingdom (topic
+    /// [`Notice::Famine`], [`Notice::NoFuel`] or [`Notice::Homeless`]) only when a spell begins:
+    /// the first time, or after the state was not seen for `notices.waiting_resolved_hours`
+    /// (docs/game_design.md §2 Meldungen). Call it every time the state is seen.
+    pub(crate) fn notify_waiting(&mut self, defs: &Defs, topic: Notice, tick: u64, notification: Notification, events: &mut Vec<SimEvent>) {
+        if self.waiting.begins(topic as u8, tick, defs.rules().notices.resolved_ticks()) {
+            self.notify(topic, tick, notification, events);
+        }
     }
 
     /// Records a job in the citizen and the job index; the caller updates `Building::staffed`.
@@ -1044,6 +1078,7 @@ impl Population {
         if !self.notices.is_empty() && self.notices.len() != Notice::COUNT {
             return Err("notification cooldowns malformed".into());
         }
+        self.waiting.validate(state.clock.tick, "population notices")?;
         let mut counted = 0usize;
         let mut listed = std::collections::BTreeSet::new();
         for (hid, h) in self.households.iter() {
@@ -1219,6 +1254,9 @@ pub(crate) fn run_population(state: &mut GameState, defs: &Defs, events: &mut Ve
     }
     let mut ctx = supply::TickContext::default();
     supply::update_households(state, defs, &mut ctx, events);
+    if state.clock.is_new_hour() {
+        supply::warn_fuel_shortage(state, defs, events);
+    }
     needs::update_citizens(state, defs, events);
     housing::update_homes(state, defs, events);
     if clock.is_new_hour() {

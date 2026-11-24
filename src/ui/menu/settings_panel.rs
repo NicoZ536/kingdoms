@@ -321,9 +321,9 @@ impl SettingsPanel {
         note(
             ui,
             if cfg!(target_os = "macos") {
-                "Klicke auf eine Taste, um sie neu zu belegen (mit Cmd, Alt, Ctrl oder Shift möglich). Rechtsklick entfernt eine Belegung."
+                "Klickt auf eine Taste, um sie neu zu belegen (mit Cmd, Alt, Ctrl oder Shift möglich). Rechtsklick entfernt eine Belegung."
             } else {
-                "Klicke auf eine Taste, um sie neu zu belegen (mit Strg, Alt oder Shift möglich). Rechtsklick entfernt eine Belegung."
+                "Klickt auf eine Taste, um sie neu zu belegen (mit Strg, Alt oder Shift möglich). Rechtsklick entfernt eine Belegung."
             },
         );
         let defaults = default_bindings();

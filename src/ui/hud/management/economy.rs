@@ -372,7 +372,7 @@ impl EconomyTab {
             });
         }
         ui.add_space(6.0);
-        ui.columns(2, |cols| {
+        super::columns(ui, 2, |cols| {
             if let Some(n) = goods_list(&mut cols[0], context, "Engpässe", &data.shortages, true) {
                 nav = Some(n);
             }

@@ -6,7 +6,9 @@
 //!   [`PLAN_INTERVAL_TICKS`] and appends [`TransportJob`]s to the queue in [`Logistics`]:
 //!   output buffer → nearest storage with room ([`TransportKind::Collect`]), surplus inputs →
 //!   storage ([`TransportKind::Return`]), storage → input buffer ([`TransportKind::Supply`])
-//!   and storage → construction site ([`TransportKind::Construction`]).
+//!   and storage → construction site ([`TransportKind::Construction`]); material a site needs
+//!   that no storage in its reach holds is first brought to the nearest storage that reaches it
+//!   from a storage that reaches that one ([`TransportKind::Restock`]).
 //! * The **executor** is [`carriers`]: the workers of a storage are its carriers. A carrier who
 //!   is at its storage during working time takes a waiting job of that storage, walks to the
 //!   source, loads (`pick_up`: the goods leave the source only now), walks to the target and
@@ -52,7 +54,7 @@ pub use routes::travel_ticks;
 use crate::buildings::BuildingId;
 use crate::defs::{Defs, ResourceAmount, ResourceId};
 use crate::economy::storage;
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::policy::JobPriority;
 use crate::population::CitizenId;
 use crate::state::GameState;
@@ -82,6 +84,9 @@ pub enum TransportKind {
     /// A gatherer brings the yield of a work cycle from the work spot to its building's
     /// output buffer.
     Haul,
+    /// Storage → storage: building material for a site that only the target storage reaches
+    /// (an outpost warehouse at the border), brought from a storage that reaches the target.
+    Restock,
 }
 
 impl TransportKind {
@@ -93,12 +98,18 @@ impl TransportKind {
             TransportKind::Supply => "Belieferung",
             TransportKind::Construction => "Baumaterial",
             TransportKind::Haul => "Ertrag",
+            TransportKind::Restock => "Nachschub",
         }
     }
 
     /// True if the target is a storage.
     pub const fn to_storage(self) -> bool {
-        matches!(self, TransportKind::Collect | TransportKind::Return)
+        matches!(self, TransportKind::Collect | TransportKind::Return | TransportKind::Restock)
+    }
+
+    /// True if the goods are taken from a storage's shelves.
+    pub const fn from_storage(self) -> bool {
+        matches!(self, TransportKind::Supply | TransportKind::Construction | TransportKind::Restock)
     }
 }
 
@@ -191,6 +202,9 @@ pub struct Logistics {
     recent_trips: VecDeque<u32>,
     /// Completed carrier trips since the game started.
     trips_completed: u64,
+    /// Storages reported for lacking carriers: once per spell (docs/game_design.md §2
+    /// Meldungen), the tick they were last seen lacking.
+    pub(crate) carrier_notices: crate::notices::Spells<BuildingId>,
     /// A storage's contents changed in this step: the stock view is refreshed once at its end
     /// (derived, never set between ticks).
     #[serde(skip)]
@@ -314,6 +328,7 @@ pub(crate) fn validate(state: &GameState, defs: &Defs) -> Result<(), String> {
     if l.recent_trips.len() > TRIP_HISTORY {
         return Err("trip history too long".into());
     }
+    l.carrier_notices.validate(state.clock.tick, "carrier notices")?;
     let mut carriers = BTreeSet::new();
     for j in &l.jobs {
         if j.resource.index() >= defs.resources().len() || j.amount == 0 {
@@ -364,11 +379,11 @@ pub(crate) fn pick_up(state: &mut GameState, job: &TransportJob) -> u32 {
             let surplus = p.input.surplus(job.resource);
             p.input.remove(job.resource, job.amount.min(surplus))
         }),
-        TransportKind::Supply | TransportKind::Construction => b.inventory.remove(job.resource, job.amount),
+        TransportKind::Supply | TransportKind::Construction | TransportKind::Restock => b.inventory.remove(job.resource, job.amount),
         // Hauls start loaded.
         TransportKind::Haul => 0,
     };
-    if taken > 0 && !job.kind.to_storage() {
+    if taken > 0 && job.kind.from_storage() {
         state.logistics.stock_dirty = true;
     }
     taken
@@ -379,7 +394,7 @@ pub(crate) fn pick_up(state: &mut GameState, job: &TransportJob) -> u32 {
 pub(crate) fn target_accepts(state: &GameState, defs: &Defs, job: &TransportJob) -> bool {
     let Some(b) = state.buildings.get(job.target) else { return false };
     match job.kind {
-        TransportKind::Collect | TransportKind::Return => storage::is_operational_storage(defs, b),
+        TransportKind::Collect | TransportKind::Return | TransportKind::Restock => storage::is_operational_storage(defs, b),
         TransportKind::Supply => b.is_complete() && (b.production.is_some() || sells(defs, b)),
         TransportKind::Construction => b.construction_site().is_some(),
         TransportKind::Haul => b.production.is_some(),
@@ -394,7 +409,7 @@ pub fn target_room(state: &GameState, defs: &Defs, job: &TransportJob) -> u32 {
     }
     let Some(b) = state.buildings.get(job.target) else { return 0 };
     match job.kind {
-        TransportKind::Collect | TransportKind::Return => b.inventory.free_space(job.resource),
+        TransportKind::Collect | TransportKind::Return | TransportKind::Restock => b.inventory.free_space(job.resource),
         TransportKind::Supply => match b.production.as_ref() {
             Some(p) => p.input().free_space(job.resource),
             None => b.inventory.free_space(job.resource),
@@ -414,7 +429,7 @@ pub(crate) fn unload(state: &mut GameState, defs: &Defs, job: &TransportJob, amo
     let mut site_became_workable = false;
     let Some(b) = state.buildings.get_mut(job.target) else { return 0 };
     let accepted = match job.kind {
-        TransportKind::Collect | TransportKind::Return => b.inventory.add(job.resource, amount),
+        TransportKind::Collect | TransportKind::Return | TransportKind::Restock => b.inventory.add(job.resource, amount),
         TransportKind::Supply => match b.production.as_mut() {
             Some(p) => p.input.add(job.resource, amount),
             // A selling building's stock (tavern).
@@ -559,14 +574,24 @@ pub fn storages_without_carriers(state: &GameState, defs: &Defs) -> Vec<Building
     waiting.into_iter().filter(|b| carriers_of(state, defs, *b) == 0).collect()
 }
 
-/// One warning naming the first storage without carriers (see [`storages_without_carriers`]).
-fn warn_missing_carriers(state: &GameState, defs: &Defs, events: &mut Vec<SimEvent>) {
+/// One warning naming the first storage whose spell without carriers begins (see
+/// [`storages_without_carriers`]; once per spell and storage, docs/game_design.md §2
+/// Meldungen), counting the others that begin with it.
+fn warn_missing_carriers(state: &mut GameState, defs: &Defs, events: &mut Vec<SimEvent>) {
+    let now = state.clock.tick;
+    let gap = defs.rules().notices.resolved_ticks();
     let lacking = storages_without_carriers(state, defs);
-    let Some(b) = lacking.first().and_then(|id| state.buildings.get(*id)) else { return };
+    let spells = &mut state.logistics.carrier_notices;
+    let new: Vec<BuildingId> = lacking.into_iter().filter(|id| spells.begins(*id, now, gap)).collect();
+    let buildings = &state.buildings;
+    spells.prune(now, gap, |id| buildings.get(id).is_some());
+    let Some((id, b)) = new.first().and_then(|id| state.buildings.get(*id).map(|b| (*id, b))) else { return };
     let name = defs.buildings().get(b.kind().index()).map_or("Ein Lager", |d| d.name.as_str());
-    let text = match lacking.len() {
+    let text = match new.len() {
         1 => format!("Keine Träger: {name} hat keine Arbeiter, Transporte bleiben liegen."),
         n => format!("Keine Träger: {name} und {} weitere Lager haben keine Arbeiter, Transporte bleiben liegen.", n - 1),
     };
-    events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).at(b.entrance())));
+    events.push(SimEvent::Notification(
+        Notification::new(Severity::Warning, text).with_kind(NotificationKind::NoCarriers).at(b.entrance()).for_building(id),
+    ));
 }

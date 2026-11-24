@@ -6,10 +6,10 @@ use kingdoms_engine::core::time::GameSpeed;
 use kingdoms_sim::defs::Weather;
 use kingdoms_sim::world::WorldSize;
 
-use super::DevPlan;
+use super::{DevCase, DevPlan};
 
 /// Variables that start a game directly instead of the main menu (developer and test runs).
-pub const DIRECT_START_VARIABLES: [&str; 25] = [
+pub const DIRECT_START_VARIABLES: [&str; 26] = [
     "KINGDOMS_SEED",
     "KINGDOMS_WORLD_SIZE",
     "KINGDOMS_WARP_TICKS",
@@ -25,6 +25,7 @@ pub const DIRECT_START_VARIABLES: [&str; 25] = [
     "KINGDOMS_DEV_THREAT",
     "KINGDOMS_DEV_TRADE",
     "KINGDOMS_DEV_UPGRADE",
+    "KINGDOMS_DEV_CASE",
     "KINGDOMS_FOCUS",
     "KINGDOMS_ZOOM",
     "KINGDOMS_SELECT",
@@ -116,6 +117,9 @@ pub struct LaunchOptions {
     /// After the warp, upgrade every finished building that has a next level (houses excepted)
     /// with granted costs, then run this many game hours (`KINGDOMS_DEV_UPGRADE=<hours>`, 1–96).
     pub dev_upgrade: Option<u32>,
+    /// After the warp, set up a state rarely seen in play and look at it
+    /// (`KINGDOMS_DEV_CASE=gasthaus|einarbeitung|lagerferne`, see `dev_case`).
+    pub dev_case: Option<DevCase>,
     /// Tile the camera starts on instead of the headquarters (`KINGDOMS_FOCUS=x,y`).
     pub focus: Option<IVec2>,
     /// The camera follows the first enemy group (`KINGDOMS_FOCUS=feind`) or the first caravan
@@ -306,6 +310,7 @@ impl Default for LaunchOptions {
             dev_threat: None,
             dev_trade: false,
             dev_upgrade: None,
+            dev_case: None,
             focus: None,
             follow: None,
             zoom: None,
@@ -355,6 +360,7 @@ impl LaunchOptions {
             v.parse::<u32>().ok().filter(|h| (1..=96).contains(h)).map(Some)
         });
         let dev_threat = parse_or("KINGDOMS_DEV_THREAT", lookup("KINGDOMS_DEV_THREAT"), None, |v| DevThreat::parse(v).map(Some));
+        let dev_case = parse_or("KINGDOMS_DEV_CASE", lookup("KINGDOMS_DEV_CASE"), None, |v| DevCase::parse(v).map(Some));
         let follow = lookup("KINGDOMS_FOCUS").and_then(|v| match v.trim().to_lowercase().as_str() {
             "feind" | "enemy" => Some(FollowTarget::Enemy),
             "karawane" | "caravan" => Some(FollowTarget::Caravan),
@@ -392,6 +398,7 @@ impl LaunchOptions {
             dev_threat,
             dev_trade,
             dev_upgrade,
+            dev_case,
             focus,
             follow,
             zoom,
@@ -483,6 +490,7 @@ mod tests {
             ("KINGDOMS_DEV_THREAT", "2:30"),
             ("KINGDOMS_DEV_TRADE", "1"),
             ("KINGDOMS_DEV_UPGRADE", "12"),
+            ("KINGDOMS_DEV_CASE", "Gasthaus"),
             ("KINGDOMS_FOCUS", "30, 41"),
             ("KINGDOMS_ZOOM", "2.5"),
             ("KINGDOMS_SELECT", "12,7"),
@@ -510,6 +518,7 @@ mod tests {
             dev_threat: Some(DevThreat { kingdom: Some(2), size: 30 }),
             dev_trade: true,
             dev_upgrade: Some(12),
+            dev_case: Some(DevCase::Tavern),
             focus: Some(IVec2::new(30, 41)),
             follow: None,
             zoom: Some(2.5),
@@ -544,6 +553,7 @@ mod tests {
             ("KINGDOMS_DEV_WALLS", "2"),
             ("KINGDOMS_DEV_THREAT", "9"),
             ("KINGDOMS_DEV_UPGRADE", "0"),
+            ("KINGDOMS_DEV_CASE", "taverne"),
         ]);
         assert_eq!(o, LaunchOptions::default());
         assert_eq!(parse_world_size("small"), Some(WorldSize::Small));

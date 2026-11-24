@@ -546,7 +546,9 @@ impl ToolController {
             None => check_placement(state, defs, kind, origin, rotation),
         };
         let queued_conflict = claims.mark_placement(&mut check, moving);
-        let plan_access = moving.is_none() && check.ok && check.entrance_status == EntranceStatus::Free;
+        // Wall pieces and towers on a wall line are entered from any side: no access road.
+        let needs_road = defs.buildings().get(kind.index()).is_some_and(|d| d.needs_road());
+        let plan_access = moving.is_none() && needs_road && check.ok && check.entrance_status == EntranceStatus::Free;
         let access = match self.placement.take() {
             // The last plan is kept for a while, but only while planning still applies the
             // same way (a spot that became valid needs a plan, an invalid one shows none).

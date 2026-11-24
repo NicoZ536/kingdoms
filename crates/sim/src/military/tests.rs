@@ -1210,3 +1210,104 @@ fn a_breach_names_the_wall_or_gate_with_its_article() {
     assert_eq!(threats::breach_text(Some(BuildingRole::Gate), "Tor"), "Die Feinde haben das Tor durchbrochen!");
     assert_eq!(threats::breach_text(Some(BuildingRole::WallSegment), "Stadtmauer"), "Die Feinde haben die Stadtmauer durchbrochen!");
 }
+
+/// Plunder notices name the building with its article and let the verbs agree with the subject
+/// (bandits are plural, an army is singular).
+#[test]
+fn plunder_texts_are_grammatical_for_bandits_and_armies() {
+    assert_eq!(threats::plunder_text(None, "Rathaus", "12 Holz und 30 Gold"), "Räuber plündern das Gebäude „Rathaus“: 12 Holz und 30 Gold.");
+    assert_eq!(threats::plunder_text(None, "Lagerhaus", ""), "Räuber plündern das Gebäude „Lagerhaus“, finden aber nichts.");
+    assert_eq!(threats::plunder_text(Some("Weidenthal"), "Rathaus", "5 Brot"), "Das Heer von Weidenthal plündert das Gebäude „Rathaus“: 5 Brot.");
+    assert_eq!(threats::plunder_text(Some("Weidenthal"), "Lagerhaus", ""), "Das Heer von Weidenthal plündert das Gebäude „Lagerhaus“, findet aber nichts.");
+    assert_eq!(threats::arson_text("Rathaus"), "Die Plünderer haben das Gebäude „Rathaus“ angezündet!");
+}
+
+/// Side of the square ring `lo..=hi` a tile lies on (0 north, 1 east, 2 south, 3 west; the
+/// corners count to north and south) and the rotation that turns its entrance inwards.
+fn inward(lo: i32, hi: i32, p: IVec2) -> crate::buildings::Rotation {
+    let side = if p.y == lo { 0 } else if p.y == hi { 2 } else if p.x == hi { 1 } else { 3 };
+    crate::buildings::Rotation::new(side).unwrap()
+}
+
+#[test]
+fn a_closed_wall_ring_with_gates_is_built_without_roads_and_stops_the_enemies() {
+    let d = defs();
+    let mut s = flat_state(48);
+    research(&mut s, "city_walls");
+    let hall = spawn(&mut s, "town_hall", 20, 20);
+    // The town hall is the only storage the ring can be built from and the citizens eat from
+    // (the fixture depot is too far away and has no road to it); a single road tile at its
+    // entrance makes it a carrier base.
+    let entrance = s.building(hall).unwrap().entrance();
+    let path = d.road_id("path").unwrap();
+    s.roads.set(entrance, Some(crate::roads::RoadTile { road: path, bridge_axis: None }));
+    s.roads.rebuild_components();
+    {
+        let b = s.buildings.get_mut(hall).unwrap();
+        b.inventory.add(d.resource_id("stone").unwrap(), 200);
+        b.inventory.add(d.resource_id("planks").unwrap(), 60);
+        // Food for the builders, who camp at the town hall.
+        for food in ["bread", "vegetables", "fish"] {
+            b.inventory.add(d.resource_id(food).unwrap(), 200);
+        }
+    }
+    crate::economy::storage::refresh_stock(&mut s, d);
+    s.workforce.mark_dirty();
+    run(&mut s, 2);
+    // Every tile of the square ring (16..27)², the corners included, faces inwards: the entrance
+    // of each corner piece is the next piece of wall. Then a gate in the middle of each side.
+    let (lo, hi) = (16, 27);
+    let ring: Vec<IVec2> = (lo..=hi)
+        .flat_map(|y| (lo..=hi).map(move |x| IVec2::new(x, y)))
+        .filter(|p| p.x == lo || p.x == hi || p.y == lo || p.y == hi)
+        .collect();
+    assert_eq!(ring.len(), 44);
+    let wall = d.building_id("wall").unwrap();
+    let gate = d.building_id("gate").unwrap();
+    let commands =
+        ring.iter().map(|p| Command::PlaceBuilding { kind: wall, origin: *p, rotation: inward(lo, hi, *p) }).collect();
+    let events = s.tick(d, commands);
+    assert!(rejection(&events).is_none(), "{:?}", rejection(&events));
+    let gates = [IVec2::new(21, lo), IVec2::new(hi, 21), IVec2::new(21, hi), IVec2::new(lo, 21)];
+    let commands = gates.iter().map(|p| Command::PlaceBuilding { kind: gate, origin: *p, rotation: inward(lo, hi, *p) }).collect();
+    let events = s.tick(d, commands);
+    assert!(rejection(&events).is_none(), "{:?}", rejection(&events));
+    let corner = s.buildings.at(IVec2::new(lo, lo)).unwrap().1;
+    assert_eq!(s.buildings.at(corner.entrance()).map(|(_, b)| b.kind()), Some(wall), "the corner's entrance is wall");
+    // The builders raise the whole ring; carriers bring the stone from the town hall to any
+    // side of each piece (the corners from outside, through the gates). No road is built.
+    let done = |s: &GameState| ring.iter().all(|p| s.buildings.at(*p).is_some_and(|(_, b)| b.is_complete()));
+    run_until(&mut s, 2 * TICKS_PER_DAY, done);
+    for p in &gates {
+        assert_eq!(s.buildings.at(*p).map(|(_, b)| b.kind()), Some(gate), "gate at {p}");
+    }
+    assert_eq!(s.roads.len(), 1, "no road but the one at the town hall");
+    s.validate_entities(d).unwrap();
+    // An enemy army must break a gate or the wall to get in (docs/game_design.md §11).
+    let k = enemy_kingdom(&mut s, 10, crate::defs::Personality::Aggressive);
+    let events = exec(&mut s, Command::DebugSpawnThreat { kingdom: Some(k), size: 6 });
+    assert!(rejection(&events).is_none(), "{:?}", rejection(&events));
+    let ring_ids: Vec<BuildingId> = ring.iter().filter_map(|p| s.buildings.id_at(*p)).collect();
+    let mut breached = false;
+    let mut struck = false;
+    for _ in 0..2 * TICKS_PER_DAY {
+        for e in run(&mut s, 1) {
+            breached |= matches!(e, SimEvent::StructureDestroyed { building, .. } if ring_ids.contains(&building));
+        }
+        struck |= s.military.warbands.iter().flat_map(|w| w.fighters.iter()).any(|f| f.attacking.is_some_and(|b| ring_ids.contains(&b)));
+        if !breached {
+            for w in &s.military.warbands {
+                for f in &w.fighters {
+                    let p = s.population.walking.traveler(f.walker).unwrap().motion().pos().tile();
+                    assert!(!(p.x > lo && p.x < hi && p.y > lo && p.y < hi), "an enemy got inside the closed ring at {p}");
+                }
+            }
+        }
+        if breached {
+            break;
+        }
+    }
+    assert!(struck, "the enemies attacked the wall or a gate");
+    assert!(breached, "the enemies broke through the ring");
+    s.validate_entities(d).unwrap();
+}

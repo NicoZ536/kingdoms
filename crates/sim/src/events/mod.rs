@@ -43,7 +43,7 @@ use crate::buildings::BuildingId;
 use crate::command::{CommandResult, RejectReason};
 use crate::defs::{Defs, EventChoice, EventDef, EventDefId, EventRisk};
 use crate::economy::storage;
-use crate::event::{Notification, SimEvent};
+use crate::event::{Notification, NotificationKind, SimEvent};
 use crate::state::GameState;
 use crate::time::{GameClock, TICKS_PER_DAY};
 
@@ -434,9 +434,12 @@ fn start(state: &mut GameState, defs: &Defs, event: EventDefId, events: &mut Vec
         event_text(state, defs, def, focus),
         crate::report::deadline_clock_text(tick, expires_tick)
     );
-    let mut note = Notification::new(def.severity, text);
+    let mut note = Notification::new(def.severity, text).with_kind(NotificationKind::Event);
     if let Some(p) = position {
         note = note.at(p);
+    }
+    if let Some(b) = focus {
+        note = note.for_building(b);
     }
     events.push(SimEvent::Notification(note));
 }
@@ -495,9 +498,12 @@ fn apply_choice(state: &mut GameState, defs: &Defs, pending: PendingEvent, choic
     let how = if by_default { "Ohne Entscheidung" } else { "Entschieden" };
     let details = if outcome.is_empty() { String::new() } else { format!(" {}", outcome.join(" ")) };
     let text = format!("{} – {how}: {label}.{details}", def.title);
-    let mut note = Notification::new(def.severity, text);
+    let mut note = Notification::new(def.severity, text).with_kind(NotificationKind::Event);
     if let Some(p) = pending.position {
         note = note.at(p);
+    }
+    if let Some(b) = pending.focus.filter(|b| state.buildings.get(*b).is_some()) {
+        note = note.for_building(b);
     }
     events.push(SimEvent::Notification(note));
 }

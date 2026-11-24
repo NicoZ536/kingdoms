@@ -590,9 +590,35 @@ pub(super) fn card_row(ui: &mut Ui, cards: &[(&str, String, Color32)]) -> Vec<eg
     responses
 }
 
-/// A hint line in soft ink (empty states, explanations).
+/// A hint line in soft ink (empty states, explanations), left-aligned and ragged-right.
 pub(super) fn hint(ui: &mut Ui, text: impl Into<String>) {
     ui.add(egui::Label::new(RichText::new(text.into()).color(Palette::INK_SOFT).italics()).wrap());
+}
+
+/// `count` columns side by side like [`Ui::columns`], each filled top-down and left-aligned.
+/// egui's own columns are laid out justified: their wrapped texts get stretched word spacing
+/// and their buttons the full column width, unlike everything else in the window.
+pub(super) fn columns<R>(ui: &mut Ui, count: usize, add: impl FnOnce(&mut [Ui]) -> R) -> R {
+    let count = count.max(1);
+    let gap = ui.spacing().item_spacing.x;
+    let width = ((ui.available_width() - gap * (count as f32 - 1.0)) / count as f32).max(0.0);
+    let top_left = ui.cursor().min;
+    let bottom = ui.max_rect().bottom();
+    let mut cols: Vec<Ui> = (0..count)
+        .map(|i| {
+            let left = top_left.x + i as f32 * (width + gap);
+            let rect = Rect::from_min_max(Pos2::new(left, top_left.y), Pos2::new(left + width, bottom));
+            let mut col = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(Layout::top_down(Align::Min)));
+            col.set_width(width);
+            col
+        })
+        .collect();
+    let result = add(&mut cols);
+    let widest = cols.iter().map(|c| c.min_rect().width()).fold(width, f32::max);
+    let height = cols.iter().map(|c| c.min_size().y).fold(0.0, f32::max);
+    let size = Vec2::new(ui.available_width().max(gap * (count as f32 - 1.0) + widest * count as f32), height);
+    ui.advance_cursor_after_rect(Rect::from_min_size(top_left, size));
+    result
 }
 
 #[cfg(test)]
@@ -607,6 +633,60 @@ mod tests {
             Ok(defs) => defs,
             Err(e) => panic!("shipped game data must load: {e}"),
         }
+    }
+
+    /// Texts of `add` laid out in a 600-point wide area: true for each justified one.
+    fn justified_texts(add: impl Fn(&mut Ui)) -> Vec<bool> {
+        let ctx = egui::Context::default();
+        let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(600.0, 400.0))), ..Default::default() };
+        let mut output = ctx.run_ui(input, |ui| add(ui));
+        output.textures_delta.clear();
+        output
+            .shapes
+            .iter()
+            .filter_map(|clipped| match &clipped.shape {
+                egui::Shape::Text(text) => Some(text.galley.job.justify),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn hints_in_columns_are_not_justified() {
+        let long = "Kein geöffnetes Gasthaus. Ein Gasthaus mit Wirt und Bier hebt Unterhaltung und Gemeinschaft.";
+        // egui's columns justify wrapped texts (the stretched word spacing of the finding) …
+        let egui_columns = justified_texts(|ui| {
+            ui.columns(2, |cols| hint(&mut cols[1], long));
+        });
+        assert_eq!(egui_columns, vec![true]);
+        // … the window's columns keep them ragged-right, like hints outside columns.
+        let ours = justified_texts(|ui| {
+            columns(ui, 2, |cols| {
+                hint(&mut cols[0], long);
+                hint(&mut cols[1], long);
+            });
+            hint(ui, long);
+        });
+        assert_eq!(ours, vec![false; 3]);
+    }
+
+    #[test]
+    fn columns_share_the_width_and_advance_below_the_tallest() {
+        let ctx = egui::Context::default();
+        let input = egui::RawInput { screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(600.0, 400.0))), ..Default::default() };
+        let mut output = ctx.run_ui(input, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(10.0, 0.0);
+            let top = ui.cursor().min.y;
+            let rects = columns(ui, 2, |cols| {
+                cols[0].allocate_exact_size(Vec2::new(40.0, 30.0), Sense::hover());
+                cols[1].allocate_exact_size(Vec2::new(40.0, 80.0), Sense::hover());
+                [cols[0].min_rect(), cols[1].min_rect()]
+            });
+            assert!((rects[0].width() - rects[1].width()).abs() < 0.5, "equal widths");
+            assert!((rects[1].left() - rects[0].right() - 10.0).abs() < 0.5, "one gap between");
+            assert!((ui.cursor().min.y - (top + 80.0)).abs() < 0.5, "continues below the taller column");
+        });
+        output.textures_delta.clear();
     }
 
     #[test]

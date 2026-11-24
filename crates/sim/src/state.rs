@@ -717,7 +717,7 @@ impl GameState {
                 actual: self.economy.stock().slot_count(),
             });
         }
-        if !self.economy.is_consistent(defs) {
+        if !self.economy.is_consistent(defs) || self.economy.validate_notices(self.clock.tick).is_err() {
             return Err(StateError::InvalidEconomy);
         }
         let mut recomputed = self.clone();

@@ -5,7 +5,7 @@
 //! while one is shown); only one panel is open at a time.
 
 use kingdoms_engine::egui::{self, Align2, Color32, CornerRadius, Pos2, Rect, RichText, Stroke, Vec2};
-use kingdoms_sim::event::Severity;
+use kingdoms_sim::event::{NotificationKind, Severity};
 use kingdoms_sim::report::{self, EventsReport, PendingEventReport, ProposalRow, RankReport};
 
 use super::build_menu::bar_button;
@@ -103,6 +103,8 @@ pub struct RightBar {
     ranks: Cached<RankReport>,
     /// Notifications panel: only warnings and dangers.
     important_only: bool,
+    /// Notifications panel: only this kind.
+    kind_filter: Option<NotificationKind>,
 }
 
 impl RightBar {
@@ -247,7 +249,8 @@ impl RightBar {
                             }
                             RightPanel::Notifications => {
                                 ui.checkbox(&mut self.important_only, "Nur Warnungen und Gefahren");
-                                feed.show_history(ui, self.important_only, actions);
+                                kind_choice(ui, &feed.kinds_in_history(), &mut self.kind_filter);
+                                feed.show_history(ui, input.session.state(), self.important_only, self.kind_filter, actions);
                             }
                             RightPanel::Tasks => {
                                 let state = input.session.state();
@@ -279,6 +282,27 @@ impl RightBar {
 }
 
 /// A small round counter at the top right of a bar button.
+/// The kind filter of the notifications panel: every kind in the list with its number of
+/// entries (`NotificationKind::display_name`), or all of them.
+fn kind_choice(ui: &mut egui::Ui, kinds: &[(NotificationKind, usize)], choice: &mut Option<NotificationKind>) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new("Art").color(Palette::INK_SOFT));
+        let label = |kind: Option<NotificationKind>| match kind {
+            None => "Alle Arten".to_owned(),
+            Some(k) => match kinds.iter().find(|(kind, _)| *kind == k) {
+                Some((_, n)) => format!("{} ({n})", k.display_name()),
+                None => k.display_name().to_owned(),
+            },
+        };
+        egui::ComboBox::from_id_salt("notification_kind").selected_text(label(*choice)).width(220.0).height(320.0).show_ui(ui, |ui| {
+            ui.selectable_value(choice, None, label(None));
+            for (kind, _) in kinds {
+                ui.selectable_value(choice, Some(*kind), label(Some(*kind)));
+            }
+        });
+    });
+}
+
 fn badge(ui: &egui::Ui, button: Rect, text: &str, color: Color32) {
     let painter = ui.painter();
     let galley = painter.layout_no_wrap(text.to_owned(), egui::FontId::proportional(11.0), Color32::WHITE);

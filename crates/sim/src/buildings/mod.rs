@@ -30,6 +30,7 @@
 //! (the builder citizens assigned to the site, weighted by their work efficiency); it also
 //! completes the site.
 
+mod access;
 pub(crate) mod construction;
 mod placement;
 mod upgrade;
@@ -45,6 +46,8 @@ use crate::policy::JobPriority;
 use crate::production::ProductionState;
 use crate::world::{MAX_MAP_EDGE, WorldMap};
 
+pub use access::{AccessPoint, access_of, access_points, is_open_sided};
+pub(crate) use access::access_components;
 pub use crate::economy::Inventory;
 pub use crate::grid::{InvalidRotation, Rotation};
 pub use construction::{

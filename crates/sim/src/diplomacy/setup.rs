@@ -15,7 +15,7 @@ use rand::RngExt;
 
 use super::{Diplomacy, Kingdom, KingdomId, Structure, economy};
 use crate::defs::{Defs, LandSource, Personality, TownZone};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::grid::{Direction, Rotation, TileRect};
 use crate::state::GameState;
 use crate::world::{DepositKind, Terrain, Tile, Vegetation};
@@ -319,7 +319,7 @@ pub(crate) fn grow_settlements(state: &mut GameState, defs: &Defs, events: &mut 
             let text = format!("Die Grenzen von {} reichen nun bis an Euer Gebiet.", k.name);
             let seat = k.seat;
             state.diplomacy.record(tick, Some(KingdomId::from_raw(i as u8)), None, text.clone());
-            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).at(seat)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Info, text).with_kind(NotificationKind::Diplomacy).at(seat)));
         }
     }
 }

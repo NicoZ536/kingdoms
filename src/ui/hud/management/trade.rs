@@ -355,7 +355,7 @@ impl TradeTab {
         let resource_name = |id: ResourceId| defs.resources().get(id.index()).map_or_else(|| id.to_string(), |r| r.name.clone());
         let resource_icon = |id: ResourceId| defs.resources().get(id.index()).map(|r| format!("res_{}", r.key));
         if data.report.orders.is_empty() {
-            hint(ui, "Noch keine Handelsaufträge. Wähle unten eine Ware und lege fest, ab welchem Bestand verkauft oder bis zu welchem Bestand gekauft wird.");
+            hint(ui, "Noch keine Handelsaufträge. Wählt unten eine Ware und legt fest, ab welchem Bestand verkauft oder bis zu welchem Bestand gekauft wird.");
         } else {
             // Prices per piece: those of the caravans' kingdoms, else of the world market.
             let quotes: Vec<String> = data

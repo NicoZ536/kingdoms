@@ -76,7 +76,7 @@ pub fn tile_on_screen(input: &HudInput<'_>, screen: Rect, tile: IVec2) -> Pos2 {
 }
 
 /// Screen point (egui points) of world point `w` for the camera of `input` on `screen`.
-fn world_on_screen(input: &HudInput<'_>, screen: Rect, w: Vec2) -> Pos2 {
+pub(super) fn world_on_screen(input: &HudInput<'_>, screen: Rect, w: Vec2) -> Pos2 {
     let view = input.view;
     let size = (view.max - view.min).max(Vec2::splat(1.0));
     let f = (w - view.min) / size;

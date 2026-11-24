@@ -20,6 +20,7 @@ mod research;
 mod walking;
 
 pub use agriculture::{
+    FuelForecast, fuel_forecast,
     AgricultureSummary, CropChoice, CropRow, FarmReport, FieldRow, FoodForecast, WeatherReport, agriculture_summary,
     farm_report, food_forecast, weather_report,
 };

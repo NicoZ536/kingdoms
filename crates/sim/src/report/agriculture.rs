@@ -535,3 +535,53 @@ pub fn food_forecast(state: &GameState, defs: &Defs) -> FoodForecast {
         summary,
     }
 }
+
+/// Fuel for the households' heating (docs/game_design.md §6.1 Heizen geht vor): what the stock
+/// holds and how long it lasts at today's demand.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FuelForecast {
+    /// Heating value of the wood and coal in the kingdom stock (construction material
+    /// included), in units of wood.
+    pub in_stock: f32,
+    /// Heating value all households burn per day at today's demand (on warm days the plain
+    /// winter demand).
+    pub per_day: f32,
+    /// True on days the households heat or stock up for it (cold days, the last day of autumn):
+    /// workshops then get fuel only beyond the reserve.
+    pub heating_season: bool,
+    /// The households' reserve the workshops do not get (0 outside the heating season).
+    pub reserve: f32,
+    /// Whole days the stock lasts (`None` while nobody needs heating).
+    pub days: Option<u32>,
+    /// True if the stock lasts fewer than `population.fuel_warning_days` days in the heating
+    /// season (the warning „Brennholz wird knapp“).
+    pub short: bool,
+    /// German summary, e.g. „Holz und Kohle reichen zum Heizen etwa 6 Tage (Bedarf 170 je Tag).“
+    pub summary: String,
+}
+
+/// The fuel forecast (see [`FuelForecast`]).
+pub fn fuel_forecast(state: &GameState, defs: &Defs) -> FuelForecast {
+    use crate::population::supply;
+    let rules = defs.rules();
+    let stock = supply::fuel_stock_milli(state, defs);
+    // On warm days the plain demand (100 %), as on the last day of autumn.
+    let per_day = supply::heating_demand_milli_per_day(state, defs);
+    let heating_season = supply::heating_season(state, defs);
+    let reserve = supply::fuel_reserve_milli(state, defs);
+    let days = (per_day > 0).then(|| u32::try_from(stock / per_day).unwrap_or(u32::MAX));
+    let short = heating_season && per_day > 0 && (stock as f64) < per_day as f64 * f64::from(rules.population.fuel_warning_days);
+    let units = |milli: u64| milli as f32 / 1000.0;
+    let summary = match days {
+        None => "Niemand muss heizen.".to_owned(),
+        Some(n) => {
+            let lasts = match n {
+                0 => "nicht einmal einen Tag".to_owned(),
+                1 => "etwa einen Tag".to_owned(),
+                n => format!("etwa {n} Tage"),
+            };
+            format!("Holz und Kohle reichen zum Heizen {lasts} (Bedarf {} je Tag).", (units(per_day)).round() as u64)
+        }
+    };
+    FuelForecast { in_stock: units(stock), per_day: units(per_day), heating_season, reserve: units(reserve), days, short, summary }
+}

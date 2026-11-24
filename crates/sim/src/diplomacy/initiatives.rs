@@ -26,7 +26,7 @@ use super::relations::{self, remember};
 use super::{KingdomId, MemoryCause, PeaceTerms, Proposal, ProposalKind, TreatyKind, economy, strength_ratio_percent};
 use crate::defs::{Defs, ResourceAmount};
 use crate::economy::{LedgerCategory, MILLI_PER_GOLD, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::TICKS_PER_HOUR;
 
@@ -278,7 +278,7 @@ fn propose(state: &mut GameState, defs: &Defs, id: KingdomId, kind: ProposalKind
     let text = format!("{what} Antwort binnen {} (bis {until}).", crate::report::hours_text(u64::from(hours)));
     state.diplomacy.record(tick, Some(id), None, what);
     events.push(SimEvent::ProposalReceived { serial, kingdom: id, expires_tick });
-    events.push(SimEvent::Notification(Notification::new(severity, text).at(seat)));
+    events.push(SimEvent::Notification(Notification::new(severity, text).with_kind(NotificationKind::Diplomacy).at(seat)));
 }
 
 /// Carries out `initiative` of kingdom `id`.
@@ -350,7 +350,7 @@ fn take(state: &mut GameState, defs: &Defs, id: KingdomId, initiative: Initiativ
                 }
             };
             state.diplomacy.record(tick, Some(id), None, text.clone());
-            events.push(SimEvent::Notification(Notification::new(Severity::Good, text).at(seat)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Good, text).with_kind(NotificationKind::Diplomacy).at(seat)));
         }
         Initiative::BorderIncident => {
             let points = f32::from(rules.relations.border_incident);
@@ -360,7 +360,7 @@ fn take(state: &mut GameState, defs: &Defs, id: KingdomId, initiative: Initiativ
             let seat = k.seat;
             state.diplomacy.record(tick, Some(id), None, text.clone());
             events.push(SimEvent::BorderIncident { kingdom: id });
-            events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).at(seat)));
+            events.push(SimEvent::Notification(Notification::new(Severity::Warning, text).with_kind(NotificationKind::Diplomacy).at(seat)));
             relations::announce_states(state, defs, events);
         }
         Initiative::DeclareWar => start_war(state, defs, id, false, events),

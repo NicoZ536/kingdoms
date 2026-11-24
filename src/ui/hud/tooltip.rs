@@ -3,9 +3,12 @@
 //! verdict with reasons and cost while building or moving, length and cost of a planned road,
 //! the refund of a demolition.
 
-use kingdoms_engine::egui::{self, RichText};
+use glam::Vec2;
+use kingdoms_engine::egui::{self, Align2, Pos2, Rect, RichText};
+use kingdoms_engine::rendering::iso;
 use kingdoms_sim::buildings::{EntranceStatus, PlacementCheck, PlacementWarning};
 use kingdoms_sim::defs::Defs;
+use kingdoms_sim::grid::TileRect;
 use kingdoms_sim::roads::RoadPlan;
 use kingdoms_sim::state::GameState;
 
@@ -22,6 +25,12 @@ use crate::ui::widgets::{Mark, marked};
 /// Seconds the cursor rests on a tile before the inspect tooltip appears.
 const INSPECT_DELAY: f32 = 0.35;
 const WIDTH: f32 = 300.0;
+/// Offset of the tooltip from the pointer, in points.
+const POINTER_OFFSET: egui::Vec2 = egui::vec2(22.0, 20.0);
+/// Room between a placement's footprint and its tooltip, in points.
+const FOOTPRINT_GAP: f32 = 14.0;
+/// Widest a tooltip gets on screen: [`WIDTH`] plus its frame.
+const OUTER_WIDTH: f32 = WIDTH + 24.0;
 
 /// What a click of the order tool would order, or why it is impossible.
 #[allow(clippy::too_many_arguments)]
@@ -114,8 +123,21 @@ pub fn show(ctx: &egui::Context, input: &HudInput<'_>, icons: &Icons) {
             Box::new(move |ui| order(ui, state, defs, company, pick, tile, building, tools.patrol_points()))
         }
     };
+    // A placement's tooltip stays beside its ghost instead of covering it.
+    let screen = ctx.content_rect();
+    let (anchor, pivot) = match tools.tool() {
+        Tool::Build { .. } | Tool::Move { building: Some(_) } => match tools.placement() {
+            Some(preview) => {
+                let (left, right) = footprint_span(input, screen, preview.check.footprint);
+                beside_footprint(left, right, pointer, screen)
+            }
+            None => (pointer + POINTER_OFFSET, Align2::LEFT_TOP),
+        },
+        _ => (pointer + POINTER_OFFSET, Align2::LEFT_TOP),
+    };
     egui::Area::new(egui::Id::unique("hud_world_tooltip"))
-        .fixed_pos(pointer + egui::vec2(22.0, 20.0))
+        .fixed_pos(anchor)
+        .pivot(pivot)
         .order(egui::Order::Tooltip)
         .interactable(false)
         .constrain(true)
@@ -128,6 +150,30 @@ pub fn show(ctx: &egui::Context, input: &HudInput<'_>, icons: &Icons) {
                     content(ui);
                 });
         });
+}
+
+/// Leftmost and rightmost screen x (points) of the outline of footprint `rect` on the ground.
+fn footprint_span(input: &HudInput<'_>, screen: Rect, rect: TileRect) -> (f32, f32) {
+    let level = input.session.state().world().get(rect.origin).map_or(0.0, |t| f32::from(t.elevation));
+    let (o, s) = (rect.origin.as_vec2(), rect.size.as_vec2());
+    [o, o + Vec2::new(s.x, 0.0), o + Vec2::new(0.0, s.y), o + s]
+        .into_iter()
+        .map(|corner| super::war_markers::world_on_screen(input, screen, iso::tile_to_world_elevated(corner, level)).x)
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(l, r), x| (l.min(x), r.max(x)))
+}
+
+/// Where the tooltip of a placement goes, given the outline of the footprint from `left` to
+/// `right` on screen: at the pointer's height right of the outline, or left of it when the
+/// screen has no room on the right; it never covers the ghost. Returns the anchor and the
+/// tooltip's corner placed there.
+pub fn beside_footprint(left: f32, right: f32, pointer: Pos2, screen: Rect) -> (Pos2, Align2) {
+    let y = pointer.y + POINTER_OFFSET.y;
+    let x = (pointer.x + POINTER_OFFSET.x).max(right + FOOTPRINT_GAP);
+    if x + OUTER_WIDTH <= screen.right() {
+        (Pos2::new(x, y), Align2::LEFT_TOP)
+    } else {
+        (Pos2::new((pointer.x - POINTER_OFFSET.x).min(left - FOOTPRINT_GAP), y), Align2::RIGHT_TOP)
+    }
 }
 
 /// Name and current activity of the citizen under the cursor.
@@ -229,7 +275,10 @@ fn verdict(ui: &mut egui::Ui, check: &PlacementCheck, access_built: bool) {
     for e in &check.errors {
         marked(ui, Mark::Error, RichText::new(e.to_string()).color(Palette::BAD));
     }
-    for w in check.warnings.iter().filter(|w| !(access_built && matches!(w, PlacementWarning::NoRoadAccess))) {
+    // The reason for the amber ghost comes first.
+    let mut warnings: Vec<&PlacementWarning> = check.warnings.iter().filter(|w| !(access_built && matches!(w, PlacementWarning::NoRoadAccess))).collect();
+    warnings.sort_by_key(|w| !matches!(w, PlacementWarning::NoStorageInReach));
+    for w in warnings {
         if matches!(w, PlacementWarning::NoStorageInReach) {
             marked(ui, Mark::Error, RichText::new(w.to_string()).strong().color(Palette::BAD));
         } else {
@@ -310,4 +359,23 @@ fn demolish(ui: &mut egui::Ui, input: &HudInput<'_>, icons: &Icons, state: &Game
     }
     tooltip_title(ui, "Abreißen");
     hint(ui, "Gebäude oder Straße anklicken · Rechtsklick/Esc: Werkzeug beenden".into());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_placement_tooltip_stays_beside_the_footprint() {
+        let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 900.0));
+        // A small footprint whose outline ends left of the usual offset: the usual place.
+        let pointer = Pos2::new(600.0, 400.0);
+        assert_eq!(beside_footprint(560.0, 600.0, pointer, screen), (Pos2::new(622.0, 420.0), Align2::LEFT_TOP));
+        // A wide one: right of its outline.
+        assert_eq!(beside_footprint(480.0, 720.0, pointer, screen), (Pos2::new(734.0, 420.0), Align2::LEFT_TOP));
+        // No room on the right: left of the outline, the tooltip's right edge there.
+        let pointer = Pos2::new(1300.0, 400.0);
+        let (anchor, pivot) = beside_footprint(1180.0, 1420.0, pointer, screen);
+        assert_eq!((anchor, pivot), (Pos2::new(1166.0, 420.0), Align2::RIGHT_TOP));
+    }
 }

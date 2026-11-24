@@ -8,7 +8,7 @@ use super::{
 };
 use crate::buildings::BuildingId;
 use crate::defs::{CropDef, Defs, GameRules};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::{DAYS_PER_SEASON, GameClock, HOURS_PER_DAY, Season, TICKS_PER_HOUR};
 use crate::world::Vegetation;
@@ -244,7 +244,7 @@ fn frost(state: &mut GameState, defs: &Defs, winter_starts: bool, events: &mut V
         } else {
             format!("Frost hat {killed} Felder mit unreifer Saat vernichtet.")
         };
-        let mut note = Notification::new(Severity::Warning, text);
+        let mut note = Notification::new(Severity::Warning, text).with_kind(NotificationKind::Agriculture);
         if let Some(at) = first_killed {
             note = note.at(at);
         }

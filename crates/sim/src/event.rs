@@ -49,6 +49,141 @@ impl Severity {
     }
 }
 
+/// What a notification is about, machine-readable (docs/game_design.md §2 Meldungen): the UI
+/// groups, filters and links messages by it instead of reading the German text.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum NotificationKind {
+    /// Anything without a more specific kind.
+    #[default]
+    General,
+    /// A construction site, move, repair or upgrade finished; a site was cancelled.
+    Construction,
+    /// A workshop lacks an input that is not on its way (Rohstoffmangel).
+    MissingInput,
+    /// A gatherer or farm finds nothing to gather in its radius.
+    NoResources,
+    /// A forester waits for room to plant (a dense forest, no shortage).
+    DenseForest,
+    /// A storage has transports waiting but no carrier.
+    NoCarriers,
+    /// Goods were lost for lack of storage room.
+    StorageFull,
+    /// Walkers find no way to a building.
+    NoPath,
+    /// Households find no food.
+    Famine,
+    /// Households have no fuel on cold days.
+    NoFuel,
+    /// Citizens without a home.
+    Homeless,
+    /// Births, deaths, arrivals, departures, households splitting or moving down a tier.
+    Population,
+    /// Treasury: bankruptcy, empty or shrinking treasury, soldiers' pay.
+    Treasury,
+    /// Trade, merchants and caravans.
+    Trade,
+    /// Research finished, started or short of gold.
+    Research,
+    /// A random event (docs/game_design.md §12) and its consequences.
+    Event,
+    /// A festival.
+    Festival,
+    /// Weather and seasons.
+    Weather,
+    /// Fields, harvests and frost.
+    Agriculture,
+    /// Recruitment, training and the army's campaigns.
+    Military,
+    /// Bandits and enemy armies approaching, attacking, breaking through or plundering.
+    Threat,
+    /// A battle was won or lost.
+    Battle,
+    /// The AI kingdoms: relations, treaties, proposals, wars and peace.
+    Diplomacy,
+    /// The ruler rose in rank.
+    Rank,
+    /// The game is lost.
+    GameOver,
+}
+
+impl NotificationKind {
+    /// Every kind, in declaration order.
+    pub const ALL: [NotificationKind; 25] = [
+        NotificationKind::General,
+        NotificationKind::Construction,
+        NotificationKind::MissingInput,
+        NotificationKind::NoResources,
+        NotificationKind::DenseForest,
+        NotificationKind::NoCarriers,
+        NotificationKind::StorageFull,
+        NotificationKind::NoPath,
+        NotificationKind::Famine,
+        NotificationKind::NoFuel,
+        NotificationKind::Homeless,
+        NotificationKind::Population,
+        NotificationKind::Treasury,
+        NotificationKind::Trade,
+        NotificationKind::Research,
+        NotificationKind::Event,
+        NotificationKind::Festival,
+        NotificationKind::Weather,
+        NotificationKind::Agriculture,
+        NotificationKind::Military,
+        NotificationKind::Threat,
+        NotificationKind::Battle,
+        NotificationKind::Diplomacy,
+        NotificationKind::Rank,
+        NotificationKind::GameOver,
+    ];
+
+    /// German display name (filters and group headings).
+    pub const fn display_name(self) -> &'static str {
+        match self {
+            NotificationKind::General => "Allgemein",
+            NotificationKind::Construction => "Bau",
+            NotificationKind::MissingInput => "Rohstoffmangel",
+            NotificationKind::NoResources => "Keine Rohstoffe im Umkreis",
+            NotificationKind::DenseForest => "Dichter Wald",
+            NotificationKind::NoCarriers => "Keine Träger",
+            NotificationKind::StorageFull => "Kein Lagerplatz",
+            NotificationKind::NoPath => "Kein Weg",
+            NotificationKind::Famine => "Nahrungsmangel",
+            NotificationKind::NoFuel => "Brennstoffmangel",
+            NotificationKind::Homeless => "Obdachlose",
+            NotificationKind::Population => "Bevölkerung",
+            NotificationKind::Treasury => "Staatskasse",
+            NotificationKind::Trade => "Handel",
+            NotificationKind::Research => "Forschung",
+            NotificationKind::Event => "Ereignis",
+            NotificationKind::Festival => "Fest",
+            NotificationKind::Weather => "Wetter",
+            NotificationKind::Agriculture => "Landwirtschaft",
+            NotificationKind::Military => "Militär",
+            NotificationKind::Threat => "Bedrohung",
+            NotificationKind::Battle => "Schlacht",
+            NotificationKind::Diplomacy => "Diplomatie",
+            NotificationKind::Rank => "Rang",
+            NotificationKind::GameOver => "Niederlage",
+        }
+    }
+
+    /// True for a lasting waiting state of a building or the kingdom (reported once when it
+    /// begins, not again until it ended; docs/game_design.md §2 Meldungen).
+    pub const fn is_waiting_state(self) -> bool {
+        matches!(
+            self,
+            NotificationKind::MissingInput
+                | NotificationKind::NoResources
+                | NotificationKind::DenseForest
+                | NotificationKind::NoCarriers
+                | NotificationKind::NoPath
+                | NotificationKind::Famine
+                | NotificationKind::NoFuel
+                | NotificationKind::Homeless
+        )
+    }
+}
+
 /// A message for the player's notification feed.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Notification {
@@ -58,17 +193,35 @@ pub struct Notification {
     pub text: String,
     /// Map tile the message refers to (the UI offers to jump there).
     pub position: Option<IVec2>,
+    /// What the message is about (group and filter by this, not by the text).
+    #[serde(default)]
+    pub kind: NotificationKind,
+    /// The building the message is about, if any (the UI links to its info window).
+    #[serde(default)]
+    pub building: Option<BuildingId>,
 }
 
 impl Notification {
     /// Notification without a map position.
     pub fn new(severity: Severity, text: impl Into<String>) -> Self {
-        Self { severity, text: text.into(), position: None }
+        Self { severity, text: text.into(), position: None, kind: NotificationKind::General, building: None }
     }
 
     /// Attaches a map position.
     pub fn at(mut self, position: IVec2) -> Self {
         self.position = Some(position);
+        self
+    }
+
+    /// Sets what the message is about.
+    pub fn with_kind(mut self, kind: NotificationKind) -> Self {
+        self.kind = kind;
+        self
+    }
+
+    /// Names the building the message is about.
+    pub fn for_building(mut self, building: BuildingId) -> Self {
+        self.building = Some(building);
         self
     }
 }
@@ -854,6 +1007,10 @@ mod tests {
     fn notification_builder_and_serde() {
         let n = Notification::new(Severity::Warning, "Rohstoffmangel").at(IVec2::new(3, 4));
         assert_eq!(n.position, Some(IVec2::new(3, 4)));
+        assert_eq!((n.kind, n.building), (NotificationKind::General, None));
+        let building = BuildingId::from_raw_parts(7, 1);
+        let n = n.with_kind(NotificationKind::MissingInput).for_building(building);
+        assert_eq!((n.kind, n.building), (NotificationKind::MissingInput, Some(building)));
         let e = SimEvent::Notification(n.clone());
         assert_eq!(e.notification(), Some(&n));
         let text = ron::to_string(&e).unwrap();
@@ -861,5 +1018,14 @@ mod tests {
         assert_eq!(back, e);
         assert!(SimEvent::YearChanged { year: 2 }.notification().is_none());
         assert!(Severity::Danger > Severity::Info);
+        // Every kind is listed once and has a German name.
+        for (i, k) in NotificationKind::ALL.iter().enumerate() {
+            assert!(!k.display_name().is_empty());
+            assert!(!NotificationKind::ALL[..i].contains(k), "{k:?} twice");
+        }
+        assert!(NotificationKind::NoResources.is_waiting_state() && !NotificationKind::Construction.is_waiting_state());
+        // A notification saved without kind and building still loads.
+        let old: Notification = ron::from_str("(severity: Info, text: \"x\", position: None)").unwrap();
+        assert_eq!((old.kind, old.building), (NotificationKind::General, None));
     }
 }

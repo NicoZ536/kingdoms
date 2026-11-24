@@ -8,7 +8,7 @@ use super::{ActiveModifier, ModifierKind, ModifierSource, TaxCap};
 use crate::buildings::BuildingId;
 use crate::defs::{BuildingFilter, DamageCause, Defs, EventDef, EventDefId, EventEffect, ResourceAmount, ResourceCategory, ServiceKind};
 use crate::economy::{LedgerCategory, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::population::{CENTI, ServiceIndex};
 use crate::state::GameState;
 use crate::time::TICKS_PER_DAY;
@@ -339,7 +339,7 @@ pub(super) fn apply(
                     ctx.position = at;
                 }
                 let text = format!("Das Gebäude „{name}“ ist {} und muss wiederaufgebaut werden.", cause.participle());
-                let mut note = Notification::new(Severity::Warning, text);
+                let mut note = Notification::new(Severity::Warning, text).with_kind(NotificationKind::Event).for_building(id);
                 if let Some(at) = at {
                     note = note.at(at);
                 }
@@ -369,7 +369,7 @@ pub(super) fn apply(
             Some((kind, position, tiles)) => {
                 events.push(SimEvent::DepositDiscovered { kind, position, tiles });
                 events.push(SimEvent::Notification(
-                    Notification::new(Severity::Good, format!("Neues Vorkommen entdeckt: {}.", kind.display_name())).at(position),
+                    Notification::new(Severity::Good, format!("Neues Vorkommen entdeckt: {}.", kind.display_name())).with_kind(NotificationKind::Event).at(position),
                 ));
                 let fields = if tiles == 1 { "1 Feld".to_owned() } else { format!("{tiles} Felder") };
                 outcome.push(format!("Neues Vorkommen: {} ({fields} mit je {amount} Einheiten).", kind.display_name()));

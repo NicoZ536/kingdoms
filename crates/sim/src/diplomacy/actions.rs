@@ -19,7 +19,7 @@ use crate::command::{CommandResult, RejectReason};
 use crate::defs::{Defs, Personality, ResourceAmount};
 use crate::economy::trade::TradeDirection;
 use crate::economy::{LedgerCategory, MILLI_PER_GOLD, storage};
-use crate::event::{Notification, Severity, SimEvent};
+use crate::event::{Notification, NotificationKind, Severity, SimEvent};
 use crate::state::GameState;
 use crate::time::TICKS_PER_DAY;
 
@@ -272,7 +272,7 @@ fn notify(state: &mut GameState, id: KingdomId, severity: Severity, text: String
     let tick = state.clock.tick;
     let seat = state.diplomacy.kingdom(id).map(|k| k.seat);
     state.diplomacy.record(tick, Some(id), None, text.clone());
-    let mut note = Notification::new(severity, text);
+    let mut note = Notification::new(severity, text).with_kind(NotificationKind::Diplomacy);
     if let Some(p) = seat {
         note = note.at(p);
     }
@@ -448,7 +448,7 @@ pub(crate) fn start_war(state: &mut GameState, defs: &Defs, id: KingdomId, by_pl
         format!("{name} erklärt Euch den Krieg! Plünderer bedrohen unbewachte Lager, der Handel mit {name} ruht.")
     };
     state.diplomacy.record(tick, Some(id), None, text.clone());
-    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).at(seat)));
+    events.push(SimEvent::Notification(Notification::new(Severity::Danger, text).with_kind(NotificationKind::Diplomacy).at(seat)));
     relations::announce_states(state, defs, events);
 }
 

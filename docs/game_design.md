@@ -40,40 +40,54 @@ Verkauf von Überschüssen) wird auf drei von fünf Kampagnenkarten nach 67–69
 auf jeder kleinen Karte bleiben über 12 000 Felder freies Land – mehr als das Doppelte des
 Imperiums.
 
-**Fortschrittskurve (Langzeitlauf, Sim-Lane Schritt 9):** Ein vorausschauender Spieler (der
+**Fortschrittskurve (Langzeitlauf, Stand Polish-Runde 11):** Ein vorausschauender Spieler (der
 ehrgeizige Spieler, der zusätzlich Holz und Nahrung vor dem Wachstum hält, einen Steinbruch je
 80 Einwohner betreibt, Lehm für den Ausbau der Häuser zu Bauernhäusern gewinnt, Buchhaltung,
 Getreideanbau, Schulwesen, Handel, Festungsbau und Verhüttung erforscht, Schule, Lagerhaus,
 zweiten Markt und Handelskontor baut, Stein, Bretter und Nahrung über dem Bedarf verkauft,
-Lager, Werkstätten und Türme ausbaut und Feste feiert, sobald der Schatz 3 000 Gold über den
-Kosten liegt) wächst in acht Jahren (192 Tage, bei 1× rund 10 Stunden) auf 204–351 Einwohner:
-Dorf nach 7 Tagen, Marktflecken nach 28–41, Stadt nach 50–75, **Großstadt auf allen drei Karten**
-nach 83, 108 bzw. 133 Tagen (Nachmessung nach Polish-Runde 10, mit Ernte- und Dürre-Ereignissen
-nach dem Weltzustand: Großstadt nur noch auf Seed 7 nach 93 Tagen; Seeds 23 und 31 bleiben mit
-215 bzw. 283 Einwohnern bei der Stadt, weil das Gebiet fehlt – 1 751 bzw. 2 057 von 2 400 Feldern,
-bei Seed 23 auch die Schule). Der Schatz endet bei 8 000–34 000 Gold (vorher 25 000–49 000):
-Hofhaltung (Großstadt 60 Gold je Tag) und Feste (bei 330 Einwohnern rund 1 400 Gold alle
-12 Tage) binden etwa ein Viertel des Überschusses (Tagesbilanz mit 330 Einwohnern etwa +420
-Steuern, +160 Marktgebühren, +50–700 Ausfuhren gegen −165 Löhne, −260 Unterhalt samt Hofhaltung).
+Lager, Werkstätten und Türme ausbaut, das Sägewerk ruhen lässt, solange das Holz knapp ist,
+fehlende Zufahrten nachbaut und Feste feiert, sobald der Schatz 3 000 Gold über den Kosten
+liegt) wächst in acht Jahren (192 Tage, bei 1× rund 10 Stunden) auf 317–375 Einwohner: Dorf nach
+7 Tagen, Marktflecken nach 25–36, Stadt nach 70–77, **Großstadt auf allen drei Karten** nach 106
+(Seed 7), 132 (Seed 23) bzw. 88 Tagen (Seed 31); niemand verhungert oder erfriert. Der Schatz
+endet bei 15 000–38 000 Gold: Hofhaltung (Großstadt 60 Gold je Tag) und Feste binden einen Teil
+des Überschusses (Tagesbilanz mit 375 Einwohnern etwa +410 Steuern, +185 Marktgebühren,
++80–320 Ausfuhren gegen −190 Löhne, −300 Unterhalt samt Hofhaltung).
+**Vorher** (Sim-Lane Schritt 10) erreichte nur Seed 7 die Großstadt; Seed 23 und 31 blieben Stadt
+(Gebiet 1 751 bzw. 2 057 von 2 400, Seed 23 ohne Schule), auf Seed 31 erfroren am Tag 143 zwei
+Bewohner, und der ehrgeizige Spieler blieb auf Seed 31 mit 93 von 100 Einwohnern Marktflecken.
+Die Ursachen lagen in Regeln, an denen auch ein umsichtiger Spieler scheitert:
+(1) Baustellen am Außenposten warteten ewig auf Material, weil das Lagerhaus am Rand leer blieb
+– jetzt füllen Träger es mit **Nachschub** aus der Stadt (§7); (2) Holz ging im Winter an
+Werkstätten und Baustellen, während Häuser froren – jetzt **geht Heizen vor** (§6.1, frühe
+Warnung „Brennholz wird knapp“); (3) ein Bauplatz konnte einen Bewohner in einer Uferbucht
+einschließen (er verhungerte) – jetzt abgelehnt (§5); (4) Haushalte am Stadtrand verhungerten,
+weil ihr Läufer auf der Tür stehend den Weg in eine Nische neben dem Haus wählte – jetzt der
+Ausgang, der zum Ziel führt (§6). Schwächen der Testspieler wurden in den Skripten behoben
+(Sägewerk pausieren, Holz zuerst, Zufahrt nachbauen, wenn sie beim Platzieren am Stein
+scheiterte – auf Seed 31 stand so die Kirche ohne Straße). Der ehrgeizige Spieler (drei Jahre)
+wird jetzt auf allen fünf Karten Stadt (Seed 7, 23, 11, 31, 42: Tag 56, 70, 61, 58, 55).
 **Gebiet:** Baustellen werden nur aus Lagern beliefert, deren Trägerradius sie erreicht (§7;
 Rathaus 20, Lagerhaus 24 Felder). Nach den ersten Türmen liegt die Grenze außerhalb der
 Reichweite des Rathauses – der frühere Stillstand bei 1 474 von 1 600 Feldern (Seed 7) war
 kein Regelfehler, sondern ein Spieler, der nur in Reichweite des Rathauses und seiner
 zentralen Lager baute. Wer weiterwächst, setzt ein Lagerhaus an den Rand (Außenposten), daneben
-einen Markt, und baut Türme und Häuser in dessen Reichweite; die Bauvorschau warnt jetzt,
+einen Markt, und baut Türme und Häuser in dessen Reichweite; die Bauvorschau warnt,
 wenn kein Lager einen Bauplatz erreicht („Kein Lager erreicht diesen Bauplatz: Das Baumaterial
 käme nie an. Baut zuerst ein Lagerhaus in der Nähe.“, `PlacementWarning::NoStorageInReach`).
-So erreicht Seed 7 die Stadt nach 50 Tagen und 2 833 Felder.
+Das Material für den Außenposten selbst kommt als Nachschub aus der Stadt.
 **Königreich** erreicht in acht Jahren keine der drei Karten, und das ist gewollt: Einwohner
-(bis 351 von 350), Wohlstand (115 000–182 000 von 50 000) und Gebäude (207–237 von 130) reichen,
-es fehlen jeweils die Burg und das Gebiet (2 514–3 032 von 3 500). Die Burg (Ausbau des
+(317–375 von 350), Wohlstand (106 000–142 000 von 50 000) und Gebäude (222–286 von 130) reichen,
+auf Seed 7 auch das Gebiet (3 503 von 3 500; Seed 23 und 31: 3 006 bzw. 3 035); überall fehlt
+die Burg. Die Burg (Ausbau des
 Rathauses) braucht 20 Eisenbarren – eigenes Eisenerz, Holzkohle und eine Schmelze, Handel mit
 einem Reich, das Eisen übrig hat, oder Land aus einem Krieg –, und erst ihr Umkreis von
-26 Feldern (rund 870 Felder mehr) schließt die Lücke im Gebiet. Auf Seed 7 liegt kein
-Eisenvorkommen im erreichbaren Land und die Nachbarn kaufen selbst Eisen; auf Seed 31 steht
-die Mine, die Köhlerei fand keinen Platz. Königreich und Imperium sind Ziele eines langen Spiels
-jenseits von acht Jahren, die Eisen voraussetzen; die Anforderungen bleiben. Test:
-`expansive_player_grows_beyond_the_town_in_eight_years` (ignoriert, `--release --ignored`).
+26 Feldern (rund 870 Felder mehr) schließt die Lücke im Gebiet. Befund aus Schritt 9: Auf Seed 7
+liegt kein Eisenvorkommen im erreichbaren Land und die Nachbarn kaufen selbst Eisen; auf Seed 31
+stand die Mine, die Köhlerei fand keinen Platz. Königreich und Imperium sind Ziele eines langen Spiels
+jenseits von acht Jahren, die Eisen voraussetzen; die Anforderungen bleiben. Tests:
+`expansive_player_grows_beyond_the_town_in_eight_years` und `ambitious_player_on_more_seeds`
+(ignoriert, `cargo test --release -p kingdoms_sim --test campaign -- --ignored --nocapture`).
 
 Der Aufstieg wird gemeldet („Euer Reich ist zum Rang „Dorf“
 aufgestiegen!“, `SimEvent::RankAchieved`). **Ansehen** gilt bei allen KI-Königreichen als Teil der
@@ -113,13 +127,27 @@ Kalender: Jahr 1 beginnt im Frühling, Tag 1, 06:00 Uhr.
 (`time::day_date_string`), nie als fortlaufende Tageszahl.
 
 **Meldungen** sind Hinweise, keine Dauerschleife: Warnungen nur für Zustände, an denen der
-Spieler etwas ändern kann, wiederholt höchstens in festen Abständen (Rohstoffmangel je Gebäude
-alle 12 h, Hunger, Kälte und Obdachlosigkeit alle 6 h, „Keine Träger“ alle 6 h, „Kein Weg“ je
-Gebäude gedrosselt); ein dichter Wald am Försterhaus ist eine neutrale Information (einmal je
-Episode, höchstens einmal je Gebäude und Tag); ein schwerer Sturm wird an seinem ersten Tag
-gemeldet. Meldungen zu Orten tragen ihre Kartenposition (Gebäude, Felder, Kartenrand,
-Hauptquartier bei Obdachlosen, Sitz eines Reichs bei Kriegen und Frieden der Reiche
+Spieler etwas ändern kann. **Wartezustände** werden einmal gemeldet, wenn sie beginnen, und
+erst wieder, wenn sie vorbei waren (`rules.ron` → `notices`): ein Zustand muss
+`waiting_delay_hours` (1 h) andauern, bevor er gemeldet wird, und gilt erst als beendet, wenn er
+`waiting_resolved_hours` (24 h) am Stück nicht mehr bestand – ein Förster, der zwischen zwei
+Wartezeiten einen Setzling pflanzt, bleibt in derselben Episode. Das gilt je Gebäude für
+Rohstoffmangel, „keine Rohstoffe im Umkreis“ und den dichten Wald (neutrale Information), je
+Lager für „Keine Träger“ (Prüfung alle 6 h), je Gebäude für „Kein Weg“ (jede fehlgeschlagene
+Wegsuche verlängert die Episode) und reichsweit für Hunger, Kälte, Obdachlosigkeit, knappes
+Brennholz (§6.1) und eine schrumpfende Staatskasse (die Kopfleiste zeigt den Zustand weiter;
+der Bankrott wird bei Beginn und Ende gemeldet, nicht täglich). Der Zustand bleibt in den
+Berichten sichtbar (Produktionsstatus, Heizung im Haus, Lagerbericht). Ein schwerer Sturm wird an
+seinem ersten Tag gemeldet. Meldungen zu Orten tragen ihre Kartenposition (Gebäude, Felder,
+Kartenrand, Hauptquartier bei Obdachlosen, Sitz eines Reichs bei Kriegen und Frieden der Reiche
 untereinander und bei Überfällen auf Karawanen).
+
+Jede Meldung trägt eine maschinenlesbare **Art** (`NotificationKind`: Bau, Rohstoffmangel, keine
+Rohstoffe im Umkreis, dichter Wald, keine Träger, kein Lagerplatz, kein Weg, Nahrungsmangel,
+Brennstoffmangel, Obdachlose, Bevölkerung, Staatskasse, Handel, Forschung, Ereignis, Fest,
+Wetter, Landwirtschaft, Militär, Bedrohung, Schlacht, Diplomatie, Rang, Niederlage, sonst
+Allgemein) und, wo es eines gibt, das **betroffene Gebäude** (`Notification::building`): Die
+Oberfläche gruppiert, filtert und verlinkt danach, ohne den deutschen Text zu lesen.
 
 ## 3. Welt
 
@@ -223,7 +251,13 @@ Größe = Grundfläche in Tiles (B×T). Kosten in Gold + Materialien. Bauzeit in
 (Arbeitsaufwand für einen Bauarbeiter; mehrere Bauarbeiter teilen sich die Arbeit). Bauarbeiter
 arbeiten **an der Baustelle**: sie stehen auf den begehbaren, vom Eingang der Baustelle aus
 erreichbaren Tiles rund um die Grundfläche (keine Brücken; jeder auf seinem Platz, vom Eingang aus
-verteilt) und bauen nur dort; Baumaterial bringen Träger (§7).
+verteilt; bei Mauerteilen und Türmen, die von jeder Seite betreten werden, §5.5, von einem
+erreichbaren Nachbarfeld aus) und bauen nur dort; Baumaterial bringen Träger (§7).
+Ein Bauplatz ist unzulässig, wenn er einen Bewohner einschließen würde: Steht in bis zu 10
+Feldern jemand auf einem Feld, das bisher eine Straße oder einen Gebäudeeingang erreicht (oder
+mehr als 96 Felder), und wäre er mit dem neuen Gebäude auf eine kleine Tasche ohne beides
+beschränkt (zwischen Gebäuden und Wasser), lautet der Fehler „Das Gebäude würde einen Bewohner
+einschließen.“ (`PlacementError::TrapsCitizen`).
 „Stufen" = Upgrade-Stufen mit Folge-ID.
 
 **Ausbau (Umbau zur nächsten Stufe):** Jeder Gebäudetyp mit `upgrade: (to, cost, hours)` in den
@@ -459,6 +493,18 @@ ID | Name | Größe | Funktion | Garnison | Verteidigung (`defense`)
 Gebäude ohne eigene Verteidigungswerte haben `military.building_hp_per_tile` (60) Trefferpunkte je
 Grundflächen-Tile. Mauern und Tore gewinnen durch `WallStrengthBonus` (§9).
 
+**Mauerlinie ohne Straße** (`access: AnySide` in den Gebäudedaten, nur 1×1 ohne Lager): Mauer,
+Tor, Wachturm und Wehrturm werden von **jedem begehbaren Nachbarfeld** betreten (zuerst der
+Eingang, dann Nord, Ost, Süd, West; keine Brücke, höchstens eine Höhenstufe), nicht nur vom
+Eingang. Ihre Baustellen brauchen keine Straße: Träger beliefern sie aus jedem Lager, dessen
+Trägerradius sie erreicht und von dessen Eingang ein Weg zu einem dieser Nachbarfelder führt;
+Bauarbeiter stehen auf den erreichbaren Feldern rund um das Stück (Teil der Stadt bevorzugt).
+So lässt sich ein geschlossener Mauerring mit Toren samt Ecken bauen – der Eingang einer Ecke
+zeigt auf das nächste Mauerstück, beliefert wird sie von außen durch ein Tor. Ohne Tor bleiben
+Ecken, die nur von außen erreichbar sind, unversorgt. Die Bauvorschau warnt bei diesen Gebäuden
+nicht vor fehlendem Straßenanschluss (`BuildingDef::needs_road()` ist falsch). Feinde müssen
+einen geschlossenen Ring brechen oder ein Tor aufbrechen (§11).
+
 ### 5.6 Straßen (`data/roads.ron`)
 ID | Name | Kosten je Tile | Tempo | Freischaltung
 ---|---|---|---|---
@@ -479,7 +525,8 @@ Straßenweg dorthin: kein Bonus). Der Handelsbericht nennt den Bonus („Handels
 Kartenrand: Preise 15 % besser.“).
 
 Straßen verbinden sich automatisch (4-Nachbar-Bitmaske N=1,E=2,S=4,W=8 → 16 Sprites je Typ).
-Gebäude benötigen Straßenzugang an einem Eingangs-Tile (vor der Vorderkante); beim Platzieren
+Gebäude benötigen Straßenzugang an einem Eingangs-Tile (vor der Vorderkante; Ausnahme: Mauer,
+Tor und Türme der Mauerlinie, §5.5); beim Platzieren
 wird automatisch ein Pfad zum nächsten Straßenstück vorgeschlagen. Er wird mit dem Gebäude in
 einem Kommando gebaut (`PlaceBuildingWithAccess`) – nur, wenn das Gebäude angenommen wurde.
 Wird ein Tile einer Brücke entfernt, verschwindet die ganze Brücke – aber nicht, solange jemand
@@ -535,8 +582,8 @@ Ankunft · bis 12:00 Arbeit · 12:00–13:00 Mittagspause am Arbeitsplatz · 13:
 17:00 Feierabend und Heimweg · 18:00 Besorgungen: der erste Erwachsene jedes bewohnten Hauses
 (Soldaten nur, wenn kein anderer Erwachsener oder Alter im Haushalt lebt) geht zum nächsten besetzten Markt, dessen Reichweite das Haus erreicht (ohne Markt zum nächsten
 Lager, dessen Trägerradius das Haus erreicht) und füllt dort den Vorrat des Haushalts auf (§6.1);
-ist der Vorrat ohne Nahrung, geht er schon vorher, sobald er nicht arbeitet und es dort Nahrung
-gibt · 19:00 Freizeit: Erwachsene und
+ist der Vorrat ohne Nahrung (an einem kalten Tag ohne Brennstoff), geht er schon vorher, sobald
+er nicht arbeitet und es dort Nahrung (Brennstoff) gibt · 19:00 Freizeit: Erwachsene und
 Alte gehen jeden zweiten Abend (abwechselnd je Bewohner und Tag) in ein Gasthaus oder eine Kirche
 in Reichweite, sonst bleiben sie bei der Familie · 21:00 Heimweg · 22:00 Schlafen. Bauern (Feld-
 und Weidehöfe) arbeiten im Sommer bis 18:00, im Winter bis 16:00. Kinder ab 6 mit einer besetzten
@@ -547,7 +594,8 @@ Der Tag ändert sich mit den Ereignissen:
 * **Festtage** (Ereignis „Religiöses Fest“, Modifikator `Festival`): vom Ende der Mittagspause
   bis 21:00 feiern alle (außer Soldaten im Dienst und Kranken) bei der Kirche in Reichweite,
   sonst auf dem Markt, statt zu arbeiten (Tätigkeit „Feiert“) – die Nachmittagsproduktion fällt
-  aus.
+  aus. Der Läufer jedes Haushalts macht vorher seine Besorgungen (18:00 bzw. bei leerem Vorrat),
+  damit kein Fest die Vorräte leert – im Winter erfröre sonst das Haus.
 * **Kranke** (Gesundheit < 40, `sick_health`) arbeiten nicht, gehen nicht zur Schule und nicht
   aus: tagsüber gehen sie in ein Krankenhaus in Reichweite („Im Krankenhaus“, Gesundheit erholt
   sich dort doppelt so schnell, `hospital_recovery_percent`), sonst bleiben sie zu Hause („Krank
@@ -605,11 +653,13 @@ ein Tile in seinem Umriss teurer oder gesperrt wird oder ein billiger gewordenes
 Straße, abgerissenes Gebäude) eine kürzere Route möglich macht (untere Schranke über das
 geänderte Rechteck unter den gemerkten Kosten); gemerkte Wege sind daher immer kürzeste Wege. Das
 Gedächtnis wird mitgespeichert. Wird unterwegs etwas auf den Weg gebaut, wird neu gesucht; wer selbst überbaut
-wird, geht auf kürzestem Weg aus der Grundfläche hinaus. Wer in einem Gebäude ist, das versetzt
+wird (oder auf einer Tür stehen bleibt, weil sein Weg neu geplant wird), geht auf dem kürzesten
+Weg aus der Grundfläche hinaus, der zum Ziel weiterführt – nicht in eine Nische neben dem Haus,
+aus der es nicht weitergeht. Wer in einem Gebäude ist, das versetzt
 oder vergrößert wird, tritt an der alten Tür heraus und läuft zur neuen. Ohne Weg (Insel,
 verbauter Eingang, Klippe) bleibt der Bewohner, wo er ist, versucht es nach 2 Stunden erneut und
-meldet höchstens alle 6 Stunden je Gebäude „Kein Weg zur Arbeit/nach Hause: … ist nicht
-erreichbar.“ Träger (die Arbeiter der Lager) laufen mit den Waren zwischen Produktionsgebäuden,
+meldet einmal je Gebäude, solange der Zustand anhält (§2 Meldungen), „Kein Weg zur
+Arbeit/nach Hause: … ist nicht erreichbar.“ Träger (die Arbeiter der Lager) laufen mit den Waren zwischen Produktionsgebäuden,
 Baustellen und Lagern (§7); Sammler tragen ihren Ertrag zur Hütte (§5.2).
 
 **Demografie:** Paare bilden Haushalte, Geburten bei Wohnraum + Zufriedenheit, Alterung,
@@ -644,7 +694,22 @@ schöpfen aus den dem Haus nächstgelegenen Lagern. Ohne Markt holt er im Lager,
 Trägerradius das Haus erreicht, nur Nahrung und Brennstoff. Wartet der Läufer dort, wird stündlich
 nachgefüllt. Obdachlose lagern am Hauptquartier und nehmen stündlich aus jedem erreichbaren Lager.
 „Nahrungsmangel“ wird nur gemeldet, wenn auch Markt bzw. Lager keine Nahrung für den Haushalt
-haben. An Baustellen gebundenes Material wird nie genommen.
+haben. An Baustellen gebundenes Material wird nicht genommen – außer Brennstoff (unten).
+Der Besorgungsgang findet auch an Festtagen statt (erst der Einkauf, dann das Fest), und ein
+Haushalt ohne Nahrung oder – an einem kalten Tag – ohne Brennstoff schickt seinen Läufer sofort
+(außerhalb der Arbeitszeit), wenn Markt bzw. Lager etwas haben.
+
+**Heizen geht vor** (`population.fuel_reserve_days` 2, `fuel_warning_days` 3): An Tagen, an
+denen geheizt wird (kalte Tage, dazu der letzte Herbsttag), bekommen Werkstätten Holz und Kohle
+(Sägewerk, Köhlerei, Schmelze, Schmiede) nur über einen Vorrat von zwei Tagen Heizbedarf aller
+Bewohner hinaus; ein Haushalt ganz ohne Brennstoff nimmt an einem kalten Tag einen Tagesbedarf
+auch aus Holz, das Baustellen versprochen ist (die Baustelle wartet dann auf Nachschub). Reichen
+Holz und Kohle in der Heizzeit für weniger als drei Tage, warnt eine Meldung einmal je Episode
+(„Brennholz wird knapp: Holz und Kohle reichen zum Heizen nur noch etwa 2 Tage. Baut Holzfäller
+und Förster oder kauft Holz – Werkstätten bekommen Brennstoff nur über den Heizvorrat hinaus.“,
+am letzten Herbsttag „Der Winter naht: …“); `report::fuel_forecast` nennt Vorrat, Tagesbedarf,
+Reserve und Tage. Ein Haus mit Brennstoff in einem erreichbaren Lager erfriert so nicht; ohne
+Brennstoff sind die Folgen früh sichtbar (Warnung, Heizstatus im Haus) und abwendbar.
 Entnahmen zählen in der Ressourcenstatistik als Verbrauch (Spalte „Haushalte“). Gegessen wird
 stündlich, zuerst die Sorte mit dem meisten Vorrat; beim Auffüllen kommen fehlende Sorten
 zuerst (Abwechslung).
@@ -727,10 +792,13 @@ erhält der nächstwohnende Arbeitslose, überzählige Arbeiter mit dem weiteste
 frei. Stilllegen, Abriss oder das Altwerden (ab 61) beenden die Arbeit sofort. **Soldaten** (§11)
 stehen dem Arbeitsmarkt nicht zur Verfügung (sie zählen nicht zu den Erwachsenen im
 arbeitsfähigen Alter der Arbeitszuteilung und nicht als arbeitslos). Lager ohne Träger,
-deren Aufträge seit einer Stunde warten, melden alle 6 Stunden „Keine Träger“.
+deren Aufträge seit einer Stunde warten, melden „Keine Träger“ einmal, solange der Zustand
+anhält (§2 Meldungen).
 
-**Benachrichtigungen** (deutsch, je Thema höchstens alle 2–6 Stunden): Nahrungs- und
-Brennstoffmangel, Obdachlose, Zuwanderung, Abwanderung, Geburten, Todesfälle, Abstieg.
+**Benachrichtigungen** (deutsch): Zuwanderung, Abwanderung, Geburten, Todesfälle und Abstieg je
+Thema höchstens alle 2–6 Stunden; Nahrungs- und Brennstoffmangel und Obdachlose sind
+Wartezustände und werden einmal je Episode gemeldet (§2 Meldungen), sichtbar bleiben sie in den
+Berichten.
 
 ## 7. Wirtschaft
 
@@ -741,7 +809,16 @@ Brennstoffmangel, Obdachlose, Zuwanderung, Abwanderung, Geburten, Todesfälle, A
   eines Lagers sind seine Träger. Alle 20 Ticks plant die Logistik Aufträge: Ausgangslager →
   nächstes Lager mit Platz (ab halbem Puffer oder voll), Überschuss im Eingangslager → Lager,
   Lager → Eingangslager (sobald höchstens halb voll), Lager → Baustelle; je Auftrag höchstens
-  eine Traglast, nur zwischen Gebäuden am selben Straßennetz und im Trägerradius des Lagers.
+  eine Traglast, nur zwischen Gebäuden am selben Straßennetz und im Trägerradius des Lagers
+  (Mauerteile und Türme der Mauerlinie: ein Fußweg vom Lagereingang zu einem ihrer
+  Nachbarfelder genügt, §5.5). In der Heizzeit erhalten Werkstätten Brennstoff nur über den
+  Heizvorrat der Haushalte hinaus (§6.1).
+  **Nachschub:** Hält kein Lager in Reichweite einer Baustelle das fehlende Material (etwa ein
+  leeres Lagerhaus am Rand des Gebiets), bringen Träger es als „Nachschub“ (Lager → Lager,
+  `TransportKind::Restock`) in das nächste Lager mit Platz, das die Baustelle beliefert: aus
+  Lagern am selben Straßennetz, deren Trägerradius dieses Lager erreicht; was schon unterwegs
+  ist, zählt mit. Von dort beliefern dessen Träger die Baustelle wie gewohnt – ein Außenposten
+  füllt sich aus der Stadt, ohne dass die Reichweite-Regel fällt.
   Ein Lager nimmt neue Aufträge nur an, solange höchstens 4 je Träger warten (mindestens 4),
   sonst wird das nächste Lager gewählt oder später geplant. Ein Träger, der in seiner
   Arbeitszeit außerhalb der Mittagspause im Lager ist, übernimmt den wichtigsten wartenden
