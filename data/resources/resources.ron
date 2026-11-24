@@ -1,0 +1,53 @@
+// Resources (docs/game_design.md §4). Gold is the treasury, not a resource.
+// Fields: id, name (German), category (Raw | Food | Goods | Luxury), base_price (gold),
+// nutrition (saturation per unit, food only), heating_value (warmth per unit in winter),
+// import_only (cannot be produced, only bought from other kingdoms), household_use (units a
+// household uses per resident and day while its housing tier asks for the good, doc §6).
+#![enable(implicit_some)]
+[
+    // ---- Rohstoffe -------------------------------------------------------------------------
+    (id: "wood",       name: "Holz",              category: Raw,    base_price: 4,  heating_value: 1.0),
+    (id: "stone",      name: "Stein",             category: Raw,    base_price: 5),
+    (id: "loam",       name: "Lehm",              category: Raw,    base_price: 3),
+    (id: "clay",       name: "Ton",               category: Raw,    base_price: 4),
+    (id: "iron_ore",   name: "Eisenerz",          category: Raw,    base_price: 8),
+    (id: "coal",       name: "Kohle",             category: Raw,    base_price: 6,  heating_value: 2.5),
+    (id: "sand",       name: "Sand",              category: Raw,    base_price: 2),
+    (id: "wool",       name: "Wolle",             category: Raw,    base_price: 7),
+    (id: "grain",      name: "Getreide (Gerste)", category: Raw,    base_price: 4),
+    (id: "hides",      name: "Häute",             category: Raw,    base_price: 6),
+    (id: "gold_ore",   name: "Golderz",           category: Raw,    base_price: 30),
+
+    // ---- Nahrung ---------------------------------------------------------------------------
+    (id: "wheat",      name: "Weizen",            category: Food,   base_price: 4),
+    (id: "flour",      name: "Mehl",              category: Food,   base_price: 7),
+    (id: "bread",      name: "Brot",              category: Food,   base_price: 10, nutrition: 3.0),
+    (id: "meat",       name: "Fleisch",           category: Food,   base_price: 12, nutrition: 3.0),
+    (id: "fish",       name: "Fisch",             category: Food,   base_price: 9,  nutrition: 2.5),
+    (id: "milk",       name: "Milch",             category: Food,   base_price: 6,  nutrition: 1.5),
+    (id: "cheese",     name: "Käse",              category: Food,   base_price: 14, nutrition: 3.0),
+    (id: "vegetables", name: "Gemüse",            category: Food,   base_price: 7,  nutrition: 2.0),
+    (id: "fruit",      name: "Obst",              category: Food,   base_price: 8,  nutrition: 2.0),
+    (id: "honey",      name: "Honig",             category: Food,   base_price: 12, nutrition: 1.5),
+
+    // ---- Waren -----------------------------------------------------------------------------
+    (id: "planks",     name: "Bretter",           category: Goods,  base_price: 9),
+    (id: "tools",      name: "Werkzeuge",         category: Goods,  base_price: 30),
+    (id: "bricks",     name: "Ziegel",            category: Goods,  base_price: 10),
+    (id: "iron_bars",  name: "Eisenbarren",       category: Goods,  base_price: 24),
+    (id: "cloth",      name: "Stoff",             category: Goods,  base_price: 18),
+    (id: "clothes",    name: "Kleidung",          category: Goods,  base_price: 34, household_use: 0.05),
+    (id: "furniture",  name: "Möbel",             category: Goods,  base_price: 40, household_use: 0.02),
+    (id: "weapons",    name: "Waffen",            category: Goods,  base_price: 55),
+    (id: "ceramics",   name: "Keramik",           category: Goods,  base_price: 16, household_use: 0.05),
+    (id: "beer",       name: "Bier",              category: Goods,  base_price: 14, household_use: 0.2),
+    (id: "leather",    name: "Leder",             category: Goods,  base_price: 16),
+    (id: "armor",      name: "Rüstungen",         category: Goods,  base_price: 45),
+
+    // ---- Luxus -----------------------------------------------------------------------------
+    (id: "jewelry",    name: "Schmuck",           category: Luxury, base_price: 120, household_use: 0.02),
+    (id: "wine",       name: "Wein",              category: Luxury, base_price: 45, household_use: 0.1),
+    (id: "spices",     name: "Gewürze",           category: Luxury, base_price: 70, import_only: true, household_use: 0.05),
+    (id: "silk",       name: "Seide",             category: Luxury, base_price: 90, import_only: true, household_use: 0.05),
+    (id: "art",        name: "Kunstgegenstände",  category: Luxury, base_price: 150, household_use: 0.01),
+]

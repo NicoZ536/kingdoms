@@ -1,0 +1,44 @@
+[workspace]
+members = ["crates/engine", "crates/sim", "tools/assetgen"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[package]
+name = "kingdoms"
+description = "KINGDOMS – Rise of an Empire: medieval city-building and kingdom simulation"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+default-run = "kingdoms"
+
+[[bin]]
+name = "kingdoms"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+glam = { version = "0.34.3", features = ["serde"] }
+# Local time of save games (system time zone; no bundled database).
+jiff = { version = "1.0.1", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo"] }
+kingdoms_engine = { path = "crates/engine" }
+kingdoms_sim = { path = "crates/sim" }
+log = "0.4.35"
+ron = "0.12.3"
+serde = { version = "1.0.229", features = ["derive"] }
+thiserror = "2.0.21"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

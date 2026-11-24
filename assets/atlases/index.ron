@@ -1,0 +1,15 @@
+AtlasIndex(
+    atlases: [
+        "terrain",
+        "overlay",
+        "nature",
+        "buildings",
+        "roads",
+        "fields",
+        "characters",
+        "effects",
+        "icons",
+        "ui",
+        "lights",
+    ],
+)

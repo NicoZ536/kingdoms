@@ -1,0 +1,92 @@
+// AI kingdoms (docs/game_design.md §10): the realms new kingdoms are drawn from, the abstract
+// economy profile and the town plan of their settlements.
+//
+// production: daily output per tile of a land source in the kingdom's territory (Farmland =
+// fertile grass/meadow, Pasture = other grass/meadow/steppe, Forest = tiles with trees, Water =
+// shallow and fresh water, Stone/Clay/Iron/Coal/Gold = deposit tiles), or per 100 inhabitants
+// (Inhabitants: crafts, only with `requires` land of at least diplomacy.craft_min_tiles tiles;
+// FarTrade: goods from distant lands, trading kingdoms only).
+// consumption: units per 100 inhabitants and day.
+// town_plan: structures of the AI settlements (sprites and footprints of the building types):
+// min + one per per_inhabitants, at most max; `needs` a land source; zone Center (the seat),
+// Town (inner half of the territory), Fields (outer half), Border (near the border).
+#![enable(implicit_some)]
+(
+    realms: [
+        (name: "Eschenwald", ruler: "Adalbert", title: "König"),
+        (name: "Rabenfels", ruler: "Margarethe", title: "Königin"),
+        (name: "Hohenmark", ruler: "Leopold", title: "Herzog"),
+        (name: "Silberau", ruler: "Mechthild", title: "Herzogin"),
+        (name: "Falkenstein", ruler: "Konrad", title: "Fürst"),
+        (name: "Lindgard", ruler: "Hildegard", title: "Fürstin"),
+        (name: "Dornburg", ruler: "Ottokar", title: "Markgraf"),
+        (name: "Weidenthal", ruler: "Kunigunde", title: "Gräfin"),
+        (name: "Sturmhöhe", ruler: "Wenzel", title: "König"),
+        (name: "Goldbrunn", ruler: "Irmgard", title: "Königin"),
+    ],
+    production: [
+        (source: Farmland, resource: "wheat", per_unit: 0.05),
+        (source: Farmland, resource: "grain", per_unit: 0.04),
+        (source: Farmland, resource: "vegetables", per_unit: 0.06),
+        (source: Farmland, resource: "fruit", per_unit: 0.025),
+        (source: Pasture, resource: "meat", per_unit: 0.03),
+        (source: Pasture, resource: "milk", per_unit: 0.03),
+        (source: Pasture, resource: "wool", per_unit: 0.02),
+        (source: Pasture, resource: "hides", per_unit: 0.015),
+        (source: Forest, resource: "wood", per_unit: 0.12),
+        (source: Forest, resource: "honey", per_unit: 0.006),
+        (source: Water, resource: "fish", per_unit: 0.08),
+        (source: Stone, resource: "stone", per_unit: 0.6),
+        (source: Clay, resource: "clay", per_unit: 0.5),
+        (source: Iron, resource: "iron_ore", per_unit: 0.5),
+        (source: Coal, resource: "coal", per_unit: 0.5),
+        (source: Gold, resource: "gold_ore", per_unit: 0.25),
+        (source: Inhabitants, resource: "bread", per_unit: 12.0, requires: Farmland),
+        (source: Inhabitants, resource: "beer", per_unit: 3.0, requires: Farmland),
+        (source: Inhabitants, resource: "wine", per_unit: 0.6, requires: Farmland),
+        (source: Inhabitants, resource: "cheese", per_unit: 2.5, requires: Pasture),
+        (source: Inhabitants, resource: "cloth", per_unit: 1.2, requires: Pasture),
+        (source: Inhabitants, resource: "clothes", per_unit: 2.0, requires: Pasture),
+        (source: Inhabitants, resource: "leather", per_unit: 1.2, requires: Pasture),
+        (source: Inhabitants, resource: "planks", per_unit: 5.0, requires: Forest),
+        (source: Inhabitants, resource: "furniture", per_unit: 0.8, requires: Forest),
+        (source: Inhabitants, resource: "bricks", per_unit: 2.5, requires: Clay),
+        (source: Inhabitants, resource: "ceramics", per_unit: 1.2, requires: Clay),
+        (source: Inhabitants, resource: "iron_bars", per_unit: 1.5, requires: Iron),
+        (source: Inhabitants, resource: "tools", per_unit: 1.5, requires: Iron),
+        (source: Inhabitants, resource: "weapons", per_unit: 0.8, requires: Iron),
+        (source: Inhabitants, resource: "jewelry", per_unit: 0.3, requires: Gold),
+        (source: Inhabitants, resource: "art", per_unit: 0.1),
+        (source: FarTrade, resource: "spices", per_unit: 1.5),
+        (source: FarTrade, resource: "silk", per_unit: 1.0),
+        (source: FarTrade, resource: "wine", per_unit: 0.8),
+        (source: FarTrade, resource: "jewelry", per_unit: 0.2),
+    ],
+    consumption: {
+        "bread": 9.0, "vegetables": 5.0, "meat": 3.0, "fish": 3.0, "cheese": 1.5, "fruit": 2.0,
+        "milk": 2.0, "honey": 0.5, "beer": 2.0, "wine": 0.6,
+        "wood": 10.0, "planks": 3.0, "stone": 2.0, "bricks": 1.5, "coal": 1.0, "tools": 1.0,
+        "iron_bars": 0.8, "wool": 0.5, "cloth": 0.8, "clothes": 1.5, "leather": 0.8,
+        "furniture": 0.5, "ceramics": 0.8, "weapons": 0.4,
+        "spices": 0.4, "silk": 0.3, "jewelry": 0.15, "art": 0.08,
+    },
+    town_plan: [
+        (building: "castle", min: 1, max: 1, zone: Center),
+        (building: "house_wood", min: 3, per_inhabitants: 12, max: 30, zone: Town),
+        (building: "farmhouse", per_inhabitants: 40, max: 8, zone: Town),
+        (building: "wheat_farm", min: 1, per_inhabitants: 70, max: 5, needs: Farmland, zone: Fields),
+        (building: "vegetable_farm", per_inhabitants: 90, max: 4, needs: Farmland, zone: Fields),
+        (building: "cattle_farm", per_inhabitants: 100, max: 3, needs: Pasture, zone: Fields),
+        (building: "sheep_farm", per_inhabitants: 140, max: 2, needs: Pasture, zone: Fields),
+        (building: "woodcutter", min: 1, per_inhabitants: 120, max: 3, needs: Forest, zone: Fields),
+        (building: "quarry", per_inhabitants: 150, max: 2, needs: Stone, zone: Fields),
+        (building: "iron_mine", per_inhabitants: 160, max: 2, needs: Iron, zone: Fields),
+        (building: "market", per_inhabitants: 90, max: 2, zone: Town),
+        (building: "church", per_inhabitants: 110, max: 1, zone: Town),
+        (building: "bakery", per_inhabitants: 100, max: 3, zone: Town),
+        (building: "smithy", per_inhabitants: 130, max: 2, zone: Town),
+        (building: "tavern", per_inhabitants: 160, max: 2, zone: Town),
+        (building: "warehouse", per_inhabitants: 150, max: 2, zone: Town),
+        (building: "watchtower", min: 2, per_inhabitants: 60, max: 8, zone: Border),
+    ],
+)

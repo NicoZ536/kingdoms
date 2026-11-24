@@ -1,0 +1,238 @@
+// Random events (docs/game_design.md §12).
+// conditions: all must hold (AnyOf for alternatives); weight: relative chance among eligible
+// events; cooldown_days: minimum days before the event can occur again; risk (optional):
+// Fire scales the weight with the share of wooden buildings without fire protection and the
+// researched FireRiskReduction, Disease with the researched DiseaseResistance.
+// focus_text (optional): the text when the event starts at a building (the focus, picked by
+// the first choice's DamageBuildings): `{building}` stands for its name.
+// choices: the first choice is the default (taken when the player does not decide) and must
+// not have requirements; `requires` lists conditions for a choice to be selectable.
+// DamageBuildings turns buildings into repair sites (cause Fire / Flood / Storm decides the
+// goods lost inside); with filter Fields it destroys the crops of that many field tiles.
+// Raiders(percent) sends a band of bandits (rules.ron military.bandits, size in percent of the
+// band the town draws) that walks in from the map edge, warning_hours after the event occurred;
+// Alarm(hours) lets every ready soldier hunt the enemies on the map (after Raiders: from the
+// band's arrival on); Muster(hours) gathers the ready soldiers at the headquarters (doc §11).
+// RaidGraceOver: the bandits' grace period is over (rules.ron military.bandits, doc §11).
+// MinDryDays(n): no rain, storm or snow for n days in a row, today included (doc §8.2).
+// MinFieldCondition / MaxFieldCondition(percent): average condition of the sown fields (the share
+// of the full yield storms and withering left, doc §8.3); false without sown fields.
+// NoEventThisSeason([ids]): none of these events occurred in the current season.
+// Festival(days) makes festival days: in the afternoon the citizens celebrate at the church or
+// market instead of working (doc §6 daily routine).
+#![enable(implicit_some)]
+[
+    (
+        id: "bad_harvest", title: "Schlechte Ernte", severity: Warning,
+        text: "Stürme und Trockenheit haben die Felder geschwächt, nun breiten sich Schädlinge und Fäulnis aus. Die Felder werden in dieser Jahreszeit deutlich weniger abwerfen.",
+        // Only weakened fields (storm damage, withering) rot; never in the same autumn as a
+        // bountiful harvest.
+        conditions: [Season(Autumn), MaxFieldCondition(85), NoEventThisSeason(["bad_harvest", "bountiful_harvest"])],
+        weight: 8, cooldown_days: 24,
+        choices: [
+            (label: "Die Verluste hinnehmen", effects: [FieldYield(percent: -30, days: 6)]),
+            (
+                label: "Nahrung zukaufen (150 Gold)", requires: [MinTreasury(150)],
+                effects: [Gold(-150), Resource(resource: "bread", amount: 40), FieldYield(percent: -30, days: 6)],
+            ),
+        ],
+    ),
+    (
+        id: "drought", title: "Dürre", severity: Danger,
+        text: "Seit Tagen ist kein Tropfen Regen gefallen. Die Felder vertrocknen, das Wachstum stockt.",
+        // A dry spell turns into a drought: no rain, storm or snow for 3 days, and the weather has
+        // not brought a drought of its own yet (then it is already announced).
+        conditions: [Season(Summer), MinDay(6), MinDryDays(3), AnyOf([Weather(Clear), Weather(Cloudy)])],
+        weight: 6, cooldown_days: 24,
+        choices: [
+            (label: "Auf Regen hoffen", effects: [Weather(weather: Drought, days: 4)]),
+            (
+                label: "Felder bewässern lassen (100 Gold)", requires: [MinTreasury(100)],
+                effects: [Gold(-100), Weather(weather: Drought, days: 4), FieldYield(percent: 25, days: 4)],
+            ),
+        ],
+    ),
+    (
+        id: "flood", title: "Überschwemmung", severity: Danger,
+        text: "Nach der Schneeschmelze tritt der Fluss über die Ufer und bedroht Häuser und Felder am Wasser.",
+        conditions: [Season(Spring), MinBuildingsNearRiver(count: 1, distance: 3)],
+        weight: 5, cooldown_days: 24,
+        choices: [
+            (
+                label: "Das Wasser ablaufen lassen",
+                effects: [
+                    Weather(weather: Rain, days: 2),
+                    DamageBuildings(filter: NearRiver(distance: 3), count: 2, cause: Flood),
+                    DamageBuildings(filter: Fields, count: 6, cause: Flood),
+                ],
+            ),
+            (
+                label: "Dämme aufschütten (80 Gold, 20 Stein)", requires: [MinTreasury(80), MinStock(resource: "stone", amount: 20)],
+                effects: [
+                    Gold(-80), Resource(resource: "stone", amount: -20), Weather(weather: Rain, days: 2),
+                    DamageBuildings(filter: NearRiver(distance: 3), count: 1, cause: Flood),
+                ],
+            ),
+        ],
+    ),
+    (
+        id: "plague", title: "Seuche", severity: Danger,
+        text: "In den engen Gassen breitet sich eine Krankheit aus. Ohne Krankenhaus sind die Bewohner schutzlos.",
+        conditions: [MinPopulation(60), LacksBuildings(["hospital"])],
+        weight: 4, cooldown_days: 36, risk: Disease,
+        choices: [
+            (label: "Die Kranken pflegen", effects: [Disease(percent: 15), Production(percent: -20, days: 3)]),
+            (
+                label: "Das Viertel abriegeln",
+                effects: [Disease(percent: 6), Production(percent: -40, days: 3), Satisfaction(amount: -8, days: 6)],
+            ),
+            (
+                label: "Heiler aus der Fremde holen (250 Gold)", requires: [MinTreasury(250)],
+                effects: [Gold(-250), Disease(percent: 4)],
+            ),
+        ],
+    ),
+    (
+        id: "fire", title: "Brand", severity: Danger,
+        text: "In einem Holzgebäude ist Feuer ausgebrochen! Ohne Brunnen in der Nähe greifen die Flammen schnell um sich.",
+        focus_text: "Im Gebäude „{building}“ ist Feuer ausgebrochen! Ohne Brunnen in der Nähe greifen die Flammen schnell um sich.",
+        conditions: [MinWoodenBuildings(count: 3, unprotected: true)],
+        weight: 6, cooldown_days: 10, risk: Fire,
+        choices: [
+            (label: "Löschketten bilden", effects: [DamageBuildings(filter: WoodenUnprotected, count: 2, cause: Fire)]),
+            (
+                label: "Feuerwehrleute bezahlen (60 Gold)", requires: [MinTreasury(60)],
+                effects: [Gold(-60), DamageBuildings(filter: WoodenUnprotected, count: 1, cause: Fire)],
+            ),
+        ],
+    ),
+    (
+        id: "bandit_raid", title: "Räuberüberfall", severity: Danger,
+        text: "Späher sichten eine Räuberbande, die sich vor den schlecht bewachten Randbezirken sammelt und Beute fordert.",
+        // Not before the grace period (military.bandits: day by difficulty, 40 inhabitants).
+        conditions: [RaidGraceOver, MaxSafetyCoverage(40)],
+        weight: 6, cooldown_days: 18,
+        choices: [
+            (
+                label: "Abwarten – Wachen und Türme sollen sie aufhalten",
+                effects: [Raiders(percent: 100), Satisfaction(amount: -3, days: 4)],
+            ),
+            (label: "Lösegeld zahlen (150 Gold)", requires: [MinTreasury(150)], effects: [Gold(-150)]),
+            (
+                label: "Die Soldaten ausschicken", requires: [MinSoldiers(5)],
+                effects: [Raiders(percent: 100), Alarm(hours: 8), Satisfaction(amount: 5, days: 6)],
+            ),
+        ],
+    ),
+    (
+        id: "merchant_visit", title: "Händlerbesuch", severity: Good,
+        text: "Ein fahrender Händler schlägt auf dem Marktplatz seine Stände auf und bietet seltene Waren feil.",
+        conditions: [MinDay(4), HasAnyBuilding(["market"])],
+        weight: 10, cooldown_days: 8,
+        choices: [
+            (label: "Kein Interesse"),
+            (
+                label: "Gewürze kaufen (200 Gold)", requires: [MinTreasury(200)],
+                effects: [Gold(-200), Resource(resource: "spices", amount: 5)],
+            ),
+            (
+                label: "Werkzeuge kaufen (120 Gold)", requires: [MinTreasury(120)],
+                effects: [Gold(-120), Resource(resource: "tools", amount: 6)],
+            ),
+            (
+                label: "40 Holz verkaufen (220 Gold)", requires: [MinStock(resource: "wood", amount: 40)],
+                effects: [Resource(resource: "wood", amount: -40), Gold(220)],
+            ),
+        ],
+    ),
+    (
+        id: "refugees", title: "Flüchtlingsgruppe", severity: Info,
+        text: "Eine Gruppe Flüchtlinge aus einem vom Krieg verwüsteten Land bittet um Aufnahme.",
+        conditions: [MinDay(8), MinFreeHousing(4)],
+        weight: 6, cooldown_days: 20,
+        choices: [
+            (label: "Die Flüchtlinge aufnehmen", effects: [Settlers(8), Satisfaction(amount: 3, days: 6)]),
+            (label: "Die Flüchtlinge abweisen", effects: [Satisfaction(amount: -3, days: 4)]),
+        ],
+    ),
+    (
+        id: "war_refugees", title: "Kriegsflüchtlinge", severity: Info,
+        text: "Familien, die vor dem Krieg zwischen den Reichen fliehen, bitten um Aufnahme.",
+        conditions: [MinDay(10), WarNearby, MinFreeHousing(4)],
+        weight: 6, cooldown_days: 12,
+        choices: [
+            (label: "Die Flüchtlinge aufnehmen", effects: [Settlers(6), Satisfaction(amount: 2, days: 4)]),
+            (label: "Die Flüchtlinge abweisen", effects: [Satisfaction(amount: -2, days: 3)]),
+        ],
+    ),
+    (
+        id: "religious_festival", title: "Religiöses Fest", severity: Good,
+        text: "Die Geistlichen laden zu einem Fest zu Ehren des Schutzheiligen ein.",
+        conditions: [HasAnyBuilding(["church"])],
+        weight: 6, cooldown_days: 12,
+        choices: [
+            (label: "Ein bescheidenes Fest", effects: [Festival(days: 1), Satisfaction(amount: 4, days: 4)]),
+            (
+                label: "Ein prächtiges Fest ausrichten (150 Gold)", requires: [MinTreasury(150)],
+                effects: [Gold(-150), Festival(days: 2), Satisfaction(amount: 12, days: 8)],
+            ),
+        ],
+    ),
+    (
+        id: "political_unrest", title: "Politische Unruhen", severity: Warning,
+        text: "Unzufriedene Bürger versammeln sich vor dem Rathaus und verlangen niedrigere Steuern und bessere Versorgung.",
+        conditions: [MinPopulation(20), AnyOf([MaxSatisfaction(35), MinTaxRate(20)])],
+        weight: 7, cooldown_days: 12,
+        choices: [
+            (
+                label: "Die Forderungen ignorieren",
+                effects: [Satisfaction(amount: -10, days: 6), Production(percent: -15, days: 3)],
+            ),
+            (label: "Die Steuern senken", effects: [TaxRateCap(max_percent: 10, days: 6), Satisfaction(amount: 6, days: 6)]),
+            (
+                label: "Zugeständnisse machen (200 Gold)", requires: [MinTreasury(200)],
+                effects: [Gold(-200), Satisfaction(amount: 10, days: 8)],
+            ),
+            (
+                label: "Die Wachen aufmarschieren lassen", requires: [MinSoldiers(8)],
+                effects: [Muster(hours: 8), Satisfaction(amount: -4, days: 6)],
+            ),
+        ],
+    ),
+    (
+        id: "bountiful_harvest", title: "Besonders erfolgreiche Ernte", severity: Good,
+        text: "Ideales Wetter hat die Felder reich tragen lassen. Die Scheunen füllen sich wie nie zuvor.",
+        // Only fields that no storm or drought has hurt; never in the same autumn as a bad harvest.
+        conditions: [Season(Autumn), MinFieldCondition(95), NoEventThisSeason(["bad_harvest", "bountiful_harvest"])],
+        weight: 6, cooldown_days: 24,
+        choices: [
+            (label: "Ein Erntedankfest feiern", effects: [FieldYield(percent: 30, days: 6), Satisfaction(amount: 5, days: 6)]),
+        ],
+    ),
+    (
+        id: "new_deposit", title: "Entdeckung neuer Vorkommen", severity: Good,
+        text: "Arbeiter sind beim Graben auf Anzeichen eines reichen Vorkommens gestoßen.",
+        conditions: [MinDay(12), HasAnyBuilding(["quarry", "clay_pit", "iron_mine", "coal_mine"])],
+        weight: 4, cooldown_days: 30,
+        choices: [
+            (label: "Die Fundstelle erschließen", effects: [SpawnDeposit(kinds: [Stone, Iron, Coal, Clay], amount: 400, radius: 18)]),
+            (
+                label: "Nach Gold suchen lassen (100 Gold)", requires: [MinTreasury(100)],
+                effects: [Gold(-100), SpawnDeposit(kinds: [Gold, Iron], amount: 250, radius: 22)],
+            ),
+        ],
+    ),
+    (
+        id: "storm_damage", title: "Sturmschäden", severity: Danger,
+        text: "Der Sturm deckt Dächer ab und knickt Balken. Holzgebäude drohen schwer beschädigt zu werden.",
+        conditions: [Weather(Storm), MinWeatherIntensity(50), MinBuildingsInCategory(category: Housing, count: 2)],
+        weight: 40, cooldown_days: 6,
+        choices: [
+            (label: "Die Schäden später beheben", effects: [DamageBuildings(filter: Wooden, count: 2, cause: Storm)]),
+            (
+                label: "Dächer sofort sichern (60 Gold, 10 Holz)", requires: [MinTreasury(60), MinStock(resource: "wood", amount: 10)],
+                effects: [Gold(-60), Resource(resource: "wood", amount: -10), DamageBuildings(filter: Wooden, count: 1, cause: Storm)],
+            ),
+        ],
+    ),
+]

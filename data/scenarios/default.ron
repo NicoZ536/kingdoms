@@ -1,0 +1,29 @@
+// Default start (docs/game_design.md §13). Offsets are preferred footprint positions relative
+// to the world's start point; blocked spots are moved to the nearest valid spot. Rotation in
+// quarter turns: 0 = entrance faces south (+y), 1 = west, 2 = north, 3 = east. The houses face
+// the town hall's entrance row so the start path is short; it is laid automatically.
+#![enable(implicit_some)]
+(
+    id: "default",
+    name: "Ein neues Reich",
+    description: "Ein Rathaus, zwei Holzhäuser und zwölf Siedler in vier Familien – baut daraus ein Königreich.",
+    start_buildings: [
+        (building: "town_hall", offset: (-2, -2)),
+        (building: "house_wood", offset: (-6, 3), rotation: 2),
+        (building: "house_wood", offset: (3, 3), rotation: 2),
+    ],
+    settlers: 12,
+    families: 4,
+    stock: {
+        "wood": 60,
+        "stone": 30,
+        "planks": 20,
+        "bread": 60,
+        "vegetables": 20,
+        "tools": 10,
+    },
+    gold: 500,
+    researched: [],
+    tax_rate_percent: 10,
+    rival_kingdoms: 5,
+)

@@ -1,0 +1,568 @@
+// Global balancing rules. Values marked "doc" come from docs/game_design.md.
+#![enable(implicit_some)]
+(
+    // doc §2: 0.2 tiles per tick on a road with speed 1.0.
+    base_walk_speed: 0.2,
+    // Gold per worker and day by job tier (doc §7: wages by job level).
+    wages: (unskilled: 0.6, skilled: 1.0, educated: 1.8),
+    // doc §5.2: 1 tool per 20 work cycles, -40 % productivity without tools.
+    tool_wear_cycles: 20,
+    no_tools_productivity_percent: 60,
+    // doc §7: input/output buffers default to 8.
+    default_buffer_capacity: 8,
+    // doc §3: clearing adds 10 % build time per tile, 2 wood per tree.
+    clearing_time_percent_per_tile: 10,
+    wood_per_cleared_tree: 2,
+    // doc §8.1: growth factors per season (crops and trees).
+    season_growth: (spring: 1.0, summer: 1.2, autumn: 0.6, winter: 0.0),
+    // doc §8.1: fishing, pastures and bees follow nature (percent).
+    season_gathering: (
+        spring: (fishing_percent: 100, pasture_percent: 100, bees_percent: 100),
+        summer: (fishing_percent: 110, pasture_percent: 100, bees_percent: 120),
+        autumn: (fishing_percent: 100, pasture_percent: 90, bees_percent: 70),
+        winter: (fishing_percent: 60, pasture_percent: 70, bees_percent: 0),
+    ),
+    // doc §8.1: winter food consumption +20 %, work speed -15 % (all production and construction).
+    winter_food_consumption_percent: 120,
+    winter_work_speed_percent: 85,
+    // doc §8.2: weather weights per season.
+    weather: (
+        spring: [(Clear, 35), (Cloudy, 30), (Rain, 30), (Storm, 5)],
+        summer: [(Clear, 50), (Cloudy, 20), (Rain, 15), (Storm, 7), (Drought, 8)],
+        autumn: [(Clear, 25), (Cloudy, 35), (Rain, 30), (Storm, 10)],
+        winter: [(Clear, 20), (Cloudy, 35), (Snow, 40), (Storm, 5)],
+    ),
+    // doc §8.2: effects at intensity 100 %; weaker weather is proportionally closer to neutral.
+    // growth/outdoor work/heating/disease in percent, moisture per day on 0-255, field damage
+    // in percent of the crops' condition, ground wetness (target) and snow per hour on 0-100,
+    // change of the day's temperature in degrees Celsius.
+    weather_effects: (
+        clear:   (growth_percent: 100, moisture_per_day: -4,  outdoor_work_percent: 100, heating_percent: 100,
+                  disease_percent: 100, field_damage_percent: 0,  ground_wetness: 0,   snow_per_hour: -2, temperature_c: 2),
+        cloudy:  (growth_percent: 95,  moisture_per_day: -2,  outdoor_work_percent: 100, heating_percent: 100,
+                  disease_percent: 100, field_damage_percent: 0,  ground_wetness: 10,  snow_per_hour: -1, temperature_c: 0),
+        rain:    (growth_percent: 110, moisture_per_day: 35,  outdoor_work_percent: 85,  heating_percent: 110,
+                  disease_percent: 115, field_damage_percent: 0,  ground_wetness: 100, snow_per_hour: -6, temperature_c: -2),
+        storm:   (growth_percent: 80,  moisture_per_day: 25,  outdoor_work_percent: 50,  heating_percent: 130,
+                  disease_percent: 115, field_damage_percent: 20, ground_wetness: 90,  snow_per_hour: 0, temperature_c: -3),
+        snow:    (growth_percent: 50,  moisture_per_day: 10,  outdoor_work_percent: 75,  heating_percent: 125,
+                  disease_percent: 130, field_damage_percent: 0,  ground_wetness: 40,  snow_per_hour: 6, temperature_c: -4),
+        drought: (growth_percent: 60,  moisture_per_day: -35, outdoor_work_percent: 90,  heating_percent: 100,
+                  disease_percent: 115, field_damage_percent: 0,  ground_wetness: 0,   snow_per_hour: -4, temperature_c: 6),
+    ),
+    // doc §8.2: daily draw (35 % persistence, intensity 20-100 %), visual ground values,
+    // notifications and the water need during droughts.
+    climate: (
+        persistence_percent: 35,
+        min_intensity: 20,
+        max_intensity: 100,
+        snow_melt_outside_winter_per_hour: 8,
+        wetness_rise_per_hour: 10,
+        wetness_fall_per_hour: 3,
+        storm_warning_intensity: 50,
+        hard_frost_intensity: 80,
+        drought_thirst_without_water: 10,
+        // doc §8.1: daily temperature = season mean + weather + up to ±3 °C a day + the start
+        // area's climate (±5 °C); households heat below 5 °C, frost at 0 °C kills unripe crops.
+        temperature: (
+            spring_c: 10, summer_c: 21, autumn_c: 9, winter_c: -3,
+            daily_spread_c: 3, climate_range_c: 5,
+            heating_below_c: 5, frost_at_c: 0,
+        ),
+    ),
+    // doc §8.3: fields.
+    agriculture: (
+        min_field_fertility: 60,
+        full_fertility: 200,
+        min_yield_percent: 40,
+        min_growth_percent: 90,
+        full_moisture: 60,
+        min_moisture_growth_percent: 40,
+        dry_moisture: 40,
+        wither_percent_per_day: 6,
+        moisture_recovery_percent: 20,
+        fallow_regeneration_per_day: 3,
+        fallow_below_percent: 60,
+        sowing_margin_percent: 10,
+        // The farm's barn: a whole harvest fits, carriers take it to storage over time.
+        harvest_buffer: 800,
+        // doc §8.3: one animal per 2 pasture tiles; a new farm starts with half its herd, which
+        // grows by a quarter of the pasture's capacity per day (not in winter).
+        pasture_tiles_per_animal: 2,
+        herd_start_percent: 50,
+        herd_growth_percent_per_day: 25,
+    ),
+    // doc §7: tax rate 0-30 %.
+    max_tax_rate_percent: 30,
+    // doc §9: research points per game hour from the headquarters alone (independent of its
+    // staff); schools add their `research_points_per_hour` (buildings.ron) scaled by their
+    // staff at work. The queue holds at most `max_queue` technologies.
+    research: (base_points_per_hour: 1.0, max_queue: 8),
+    // doc §12: events with choices. At `check_hour` of every day from `first_day` on, without a
+    // pending event and at least `min_days_between` days after the last one, an event occurs
+    // with `daily_chance_percent` (x difficulty); the eligible events compete by weight. The
+    // player decides within `decision_hours`, otherwise the first choice applies.
+    events: (
+        first_day: 6,
+        check_hour: 9,
+        daily_chance_percent: 35,
+        difficulty_chance_percent: (easy: 60, normal: 100, hard: 150),
+        min_days_between: 2,
+        decision_hours: 12,
+        weather_intensity: 60,
+        // Fire spreads to unprotected wooden buildings within 4 tiles (wells stop it).
+        fire_spread_radius: 4,
+        // Damaged buildings become repair sites: half the build time and half the materials.
+        repair_work_percent: 50,
+        repair_material_percent: 50,
+        fire_goods_loss_percent: 100,
+        flood_goods_loss_percent: 50,
+        // Falling ill costs 40 health points (with a hospital in reach 25 % of that).
+        plague_health_loss: 40,
+        deposit_tiles: 5,
+        history_length: 32,
+    ),
+    // Festivals (doc §7 Feste und Hofhaltung): the player holds one for 100 gold + 4 per
+    // inhabitant at most every 12 days (a church or market is the venue): one festival day,
+    // happiness +8 for 6 days, and envoys of every kingdom at peace come as guests (relation +4,
+    // at most +12 from festivals, fading like every memory).
+    festival: (
+        gold_base: 100, gold_per_inhabitant: 4,
+        festival_days: 1, happiness: 8, happiness_days: 6,
+        cooldown_days: 12,
+        relation: 4, relation_max: 12,
+    ),
+    // Logistics (doc §6/§7): units per carrier trip and loading time per trip end.
+    carrier_capacity: 12,
+    carrier_handling_ticks: 10,
+    // Tools kept by buildings that wear tools (doc §5.2: 1 tool lasts 20 cycles).
+    tools_buffer: 1,
+    // doc §7: p = base x clamp((demand+1)/(supply+1))^0.5, smoothed daily.
+    price_smoothing_percent: 25,
+    price_ratio_min: 0.25,
+    price_ratio_max: 4.0,
+    // World market (until AI kingdoms trade): sell at price -20 %, buy at price +20 %.
+    trade_margin_percent: 20,
+    max_trade_daily_limit: 1000,
+    // doc §7 market fees: gold per served resident and day.
+    market_fee_per_resident: 0.5,
+    // doc §5.4: taverns keep up to 12 units of beer, refilled by carriers.
+    shop_stock: 12,
+    // Bankruptcy halves productivity.
+    bankruptcy_productivity_percent: 50,
+    // Trees (doc §3: growth 0-255): a sapling becomes fellable after about 2.7 days in spring.
+    tree_growth_per_hour: 3,
+    fellable_tree_growth: 192,
+    // Felled trees leave a stump that rots away after two days.
+    stump_decay_hours: 48,
+    // doc §3: fish regenerates slowly.
+    fish_regeneration_per_day: 1,
+    max_fish_per_tile: 600,
+    // Population (doc §6). Need, health and happiness values are 0-100; rates per game hour.
+    population: (
+        // doc §6: children < 14, elders > 60 (no work). Ages advance 1 year per season (doc §2).
+        adult_age: 14,
+        elder_age: 61,
+        // Chance to die of old age within one year of life (= 6 days) from the given age on.
+        mortality: [
+            (from_age: 50, percent_per_year: 1.0),
+            (from_age: 60, percent_per_year: 5.0),
+            (from_age: 65, percent_per_year: 12.0),
+            (from_age: 70, percent_per_year: 30.0),
+            (from_age: 75, percent_per_year: 60.0),
+            (from_age: 80, percent_per_year: 100.0),
+        ],
+        // doc §4: saturation per adult and day (children 60 %); winter +20 % (above).
+        food_per_day: 4.0,
+        child_food_percent: 60,
+        // Households restock on the evening errand and keep a day and a half of food, fuel and
+        // goods in their pantry (enough until the next errand).
+        pantry_days: 1.5,
+        // Heating value per resident and winter day (wood 1.0, coal 2.5 per unit).
+        fuel_per_resident_day: 0.6,
+        need_change_per_hour: 10.0,
+        // Without food hunger falls from 100 to 0 in about 33 hours.
+        hunger_decay_per_hour: 3.0,
+        need_met_threshold: 60,
+        no_water_thirst: 25,
+        base_safety: 70,
+        base_health_need: 30,
+        variety_bonus_per_food: 10,
+        max_variety_bonus: 30,
+        hospital_health_bonus: 40,
+        base_social: 20,
+        family_social_bonus: 30,
+        market_social_bonus: 25,
+        tavern_social_bonus: 25,
+        base_entertainment: 10,
+        base_faith: 10,
+        winter_warmth_without_fuel: 10,
+        clothes_warmth_bonus: 30,
+        // A basic village (house, food, well, market) reaches about 72 points; church, tavern
+        // and hospital lift happiness towards 100.
+        need_weights: (
+            hunger: 2.0, thirst: 1.5, shelter: 1.5, warmth: 1.0, safety: 1.0,
+            health: 1.5, social: 1.0, entertainment: 1.0, faith: 1.0,
+        ),
+        happiness_change_per_hour: 5.0,
+        // Every percent of tax above 10 % costs one point of happiness (below: gains one).
+        neutral_tax_rate_percent: 10,
+        tax_happiness_per_percent: 1.0,
+        employed_happiness: 5,
+        unemployed_happiness: -10,
+        missing_goods_happiness: -8,
+        health_change_per_hour: 2.0,
+        starvation_damage_per_hour: 3.0,
+        freezing_damage_per_hour: 2.0,
+        freezing_warmth: 15,
+        elder_health_loss_per_year: 2.0,
+        disease_death_per_mille: 0.5,
+        hospital_disease_percent: 25,
+        // doc §6: happiness < 30 -> emigration, > 70 -> immigration.
+        emigration_happiness: 30,
+        emigration_days: 2,
+        immigration_happiness: 70,
+        immigration_chance_per_point: 2.0,
+        immigration_max_chance_percent: 60,
+        immigration_daily_base: 8,
+        immigration_daily_percent: 10,
+        immigration_food_days: 1.0,
+        // Immigrants leave one place per house free: births and marriages need a free place.
+        immigration_reserved_places: 1,
+        immigrant_educated_percent: 10,
+        birth_chance_percent: 5.0,
+        fertile_min_age: 18,
+        fertile_max_age: 40,
+        birth_min_happiness: 50,
+        birth_interval_days: 6,
+        marriage_min_age: 18,
+        marriage_max_age_gap: 12,
+        marriage_chance_percent: 20,
+        school_age: 6,
+        education_per_day: 4,
+        educated_threshold: 50,
+        // doc §5.1: houses fall back a tier after two days of unmet requirements.
+        downgrade_after_hours: 48,
+        full_productivity_health: 50,
+        full_productivity_happiness: 30,
+        // doc §5.4: a tavern without beer (and none at home) entertains less and its social
+        // bonus is halved.
+        tavern_without_goods_entertainment: 60,
+        // doc §6: friends form among people at the same place (work at lunch, school, tavern or
+        // church, the same house); each friend lifts the social need.
+        max_friends: 3,
+        friend_social_bonus: 10,
+        friendship_chance_permille: 20,
+        // doc §6: below this health a citizen is sick and stays at home or goes to a hospital
+        // in reach, where health recovers twice as fast.
+        sick_health: 40,
+        hospital_recovery_percent: 200,
+        // doc §6: a worker sick for a day gives the job up (sick leave) and takes a new one only
+        // when healthy, so the place does not stay empty.
+        sick_leave_after_hours: 24,
+        // doc §6 Qualifikation: skilled and educated jobs need training – a worker new to the
+        // job category starts at 80 % (educated 90 %) and is fully productive after 3 days.
+        training: (start_percent: 80, educated_start_percent: 90, full_after_days: 3),
+        // doc §6 Wohlstand: households earn per working member (house tier: income_per_worker
+        // in buildings.ron) plus the wages of the crown, pay head tax and market fee, and buy
+        // food, fuel and goods at the market price.
+        wealth: (
+            start_savings_per_member: 30.0,
+            elder_income_percent: 50,
+            unemployed_income_percent: 25,
+            homeless_income_per_worker: 20.0,
+            poor_savings_per_member: 5.0,
+            wealthy_savings_per_member: 150.0,
+            poverty_happiness: -15,
+            wealth_happiness: 4,
+        ),
+    ),
+    // Walking, navigation and the daily routine (doc §2, §3, §6). Path costs are permille of a
+    // tile on a road with speed 1.0 (a path); off-road walking is 25 % slower on easy ground.
+    // Water is impassable except on bridges; neighbouring tiles may differ by one level.
+    walking: (
+        terrain_cost_permille: {
+            Sand: 1600, Swamp: 3750, Steppe: 1250, Dirt: 1250, Grass: 1250, Meadow: 1250,
+            Forest: 1750, Rock: 2250, Snow: 2500,
+        },
+        slope_cost_permille: 250,
+        max_step: 1,
+        child_speed_permille: 900,
+        elder_speed_permille: 750,
+        sick_speed_permille: 600,
+        snow_speed_permille: 800,
+        rain_speed_permille: 950,
+        storm_speed_permille: 850,
+        // Pathfinding: node expansions per tick (more requests wait) plus an extra for every
+        // waiting request up to a cap (rush hours), per search, remembered paths and what a
+        // remembered path costs of the budget, retry two hours after finding no path.
+        path_budget_per_tick: 10000,
+        path_budget_per_queued: 100,
+        path_budget_max_per_tick: 25000,
+        max_search_nodes: 150000,
+        path_cache_size: 8192,
+        path_cache_hit_cost: 25,
+        no_path_retry_ticks: 400,
+        // doc §6: 08:00 commute, work until 12:00, lunch, work 13:00-17:00, errands 18:00,
+        // leisure 19:00, home 21:00, sleep 22:00; school 08:00-13:00; farmers +1 h in summer,
+        // -1 h in winter.
+        routine: (
+            wake_hour: 6,
+            work_start_hour: 8,
+            lunch_start_hour: 12,
+            lunch_end_hour: 13,
+            work_end_hour: 17,
+            farmer_summer_extra_hours: 1,
+            farmer_winter_fewer_hours: 1,
+            errand_hour: 18,
+            leisure_hour: 19,
+            home_hour: 21,
+            sleep_hour: 22,
+            school_start_hour: 8,
+            school_end_hour: 13,
+        ),
+    ),
+    // doc §7, §10: AI kingdoms, relations, treaties, war (abstract until the military phase)
+    // and trade caravans.
+    diplomacy: (
+        // Kingdoms per map size; the scenario's rival_kingdoms is an upper limit.
+        kingdoms: (small: 3, medium: 4, large: 5, huge: 5),
+        start_population_min: 80,
+        start_population_max: 160,
+        max_population: 420,
+        // Territory radius 9 + inhabitants / 30 tiles, at most 22.
+        base_radius: 9,
+        inhabitants_per_radius: 30,
+        max_radius: 22,
+        growth_permille: 10,
+        starvation_permille: 15,
+        tax_per_inhabitant: 0.8,
+        soldier_upkeep: 1.0,
+        start_gold_per_inhabitant: 8,
+        reserve_days: 4,
+        surplus_days: 8,
+        stock_limit_days: 14,
+        winter_farm_percent: 50,
+        craft_min_tiles: 6,
+        personalities: (
+            trader:     (weight: 3, base_relation: 10,  soldiers_per_100: 5,  aggression: 10, generosity: 35, trade_interest: 80, expansion: 20),
+            expansive:  (weight: 2, base_relation: -5,  soldiers_per_100: 9,  aggression: 40, generosity: 10, trade_interest: 30, expansion: 70),
+            peaceful:   (weight: 3, base_relation: 15,  soldiers_per_100: 4,  aggression: 0,  generosity: 40, trade_interest: 45, expansion: 10),
+            aggressive: (weight: 2, base_relation: -15, soldiers_per_100: 12, aggression: 75, generosity: 0,  trade_interest: 15, expansion: 45),
+        ),
+        relations: (
+            memory_decay_percent: 3,
+            memory_decay_min: 0.2,
+            max_memories: 12,
+            border_tension_hard: -10,
+            border_tension_soft: -3,
+            war: -50,
+            common_enemy: 15,
+            gift_points_per_100_gold: 4.0,
+            gift_max: 30,
+            trade_points: 1.0,
+            trade_max: 15,
+            tribute_paid: 8,
+            demand_refused: -15,
+            proposal_declined: -3,
+            demanded: -12,
+            war_declared: -35,
+            war_on_friend: -12,
+            peace_made: 10,
+            border_incident: -5,
+            broken_word: -6,
+            price_percent_per_10: 1,
+        ),
+        treaties: (
+            trade_days: 24,
+            pact_days: 24,
+            alliance_days: 36,
+            trade_relation: 10,
+            pact_relation: 6,
+            alliance_relation: 20,
+            trade_price_bonus_percent: 10,
+            alliance_price_bonus_percent: 15,
+            break_trade: -12,
+            break_pact: -30,
+            break_alliance: -45,
+        ),
+        ai: (
+            initiative_hour: 10,
+            first_initiative_day: 2,
+            initiative_chance_percent: 30,
+            decision_hours: 18,
+            // Inbox pacing (doc §10): one open proposal per kingdom, at most two in all (peace
+            // offers always come), none before day 3, then at least a day between two new ones
+            // (two days in the first twelve days).
+            max_open_proposals: 2,
+            first_proposal_day: 3,
+            proposal_gap_hours: 24,
+            early_proposal_gap_hours: 48,
+            early_days: 12,
+            demand_first_day: 12,
+            // Grace period: no AI declares war on the player in the first year and a half.
+            war_grace_days: 36,
+            ai_war_first_day: 10,
+            trade_threshold: 20,
+            pact_threshold: 30,
+            alliance_threshold: 60,
+            tribute_threshold: 40,
+            peace_threshold: 0,
+            superiority_percent: 130,
+            demand_percent: 10,
+            demand_min: 50,
+            demand_max: 400,
+            gift_percent: 5,
+            gift_min: 40,
+            gift_max: 250,
+            offer_premium_percent: 25,
+            sale_discount_percent: 15,
+            offer_units: 30,
+        ),
+        war: (
+            strength_per_soldier: 4,
+            inhabitants_per_strength: 5,
+            raid_interval_days: 3,
+            raid_percent: 15,
+            exhaustion_per_day: 6,
+            exhaustion_failed_raid: 15,
+            exhaustion_peace: 60,
+            weariness_base: 3,
+            weariness_days_per_point: 4,
+            weariness_max: 10,
+            ai_losses_permille: 30,
+            ai_war_min_days: 5,
+            ai_peace_chance_percent: 15,
+            border_ceded: 3,
+            reparations_percent: 20,
+        ),
+        caravans: (
+            margin_percent: 15,
+            capacity: 80,
+            purse_percent: 30,
+            trade_hours: 2,
+            interval_neutral_hours: 36,
+            interval_friendly_hours: 24,
+            interval_treaty_hours: 12,
+            retry_hours: 6,
+            travel_hours_per_100_tiles: 8,
+            min_travel_hours: 3,
+            robbery_war_percent: 25,
+            robbery_hostile_percent: 10,
+            robbery_rival_percent: 3,
+            robbery_max_percent: 50,
+            route_margin: 12,
+            cart_delay_ticks: 14,
+            stuck_hours: 3,
+        ),
+    ),
+    // Military (docs/game_design.md §11): recruitment, pay, morale, combat, threats, campaigns.
+    military: (
+        // Recruits training at one building at the same time; training speed without trainers
+        // (the building's workers) in percent.
+        training_slots: 6,
+        training_without_staff_percent: 50,
+        max_companies: 12,
+        max_company_size: 40,
+        max_patrol_points: 8,
+        // Ready soldiers react to enemies within these radii (tiles): around their post or
+        // area, patrols around themselves.
+        alert_radius: 12,
+        patrol_alert_radius: 8,
+        // Morale (0-100): the daily step towards the target and what shifts the target.
+        morale_change_per_day: 10,
+        morale_unpaid: -25,
+        morale_hungry: -15,
+        morale_happiness_per_10: 2,
+        morale_victory: 10,
+        morale_defeat: -15,
+        morale_low_equipment: -10,
+        // Soldiers below this morale or below this share of their health leave the fight.
+        flee_morale: 15,
+        retreat_health_percent: 25,
+        // Equipment (permille) lost per combat round fought; a refit (one unit of each
+        // equipment good of the unit) restores refit_permille.
+        wear_per_round_permille: 6,
+        refit_permille: 500,
+        // Health regained per game hour at the post (doubled with a hospital in reach).
+        heal_per_hour: 2,
+        // Food per soldier and day from the storages at war or on campaign (thousandths).
+        war_ration_milli: 500,
+        // Combat rounds: every round_ticks; damage = attack × damage_factor / (defense +
+        // defense_offset) ± variance_percent.
+        round_ticks: 10,
+        damage_factor: 30,
+        defense_offset: 10,
+        variance_percent: 20,
+        forest_defense_percent: 20,
+        height_defense_percent: 25,
+        wall_defense_percent: 30,
+        garrison_defense_percent: 50,
+        garrison_range_bonus: 2,
+        experience_per_round: 1,
+        experience_per_kill: 5,
+        experience_attack_percent: 20,
+        building_hp_per_tile: 60,
+        repair_percent_per_day: 25,
+        hq_capture_hours: 2,
+        hq_defense_radius: 8,
+        // Bandits of the raid event (§12).
+        bandits: (
+            attack: 3, defense: 1, hit_points: 60, morale: 30, speed_permille: 1050, building_damage: 1,
+            // Band size (doc §11 Räuber): 3 + 1 per 12 inhabitants (at most 12) x difficulty;
+            // one bandit fewer per 2 defenders (ready soldiers, towers), at most half the band.
+            min: 3, citizens_per_bandit: 12, max: 12,
+            size_percent: (easy: 75, normal: 100, hard: 125),
+            defenders_per_bandit: 2, max_deterrence_percent: 50,
+            // Fair pacing (doc §11): no raid before a town can defend itself – Bürgerwehr (36
+            // research points, 100 gold), barracks (14 h, 150 gold), a watchtower and four militia
+            // take a village about a week and 350 gold –, so not before the second spring (easy:
+            // with the war grace, hard: the first winter) and 40 inhabitants. The scouts report
+            // the band 8 h before it reaches the map edge (at least 2 h after the decision).
+            grace_days: (easy: 36, normal: 24, hard: 18), grace_population: 40,
+            warning_hours: 8, delay_hours: 2,
+            plunder_rounds: 24, loaded_speed_permille: 800,
+            steal_units: 15, steal_gold: 10, fire_percent: 35, flee_losses_percent: 35,
+        ),
+        // Armies of kingdoms at war with the player (every diplomacy.war.raid_interval_days).
+        armies: (
+            share_percent: 50, min_soldiers: 6, max_size: 40,
+            mix: [("militia", 30), ("spearman", 25), ("swordsman", 25), ("archer", 20)],
+            conquest_aggression: 50,
+            retreat_losses_percent: 50,
+            aggro_radius: 6,
+            // An army withdrawing after a peace that finds no way off the map (walled in
+            // without a gate) disbands after this many hours.
+            withdraw_stuck_hours: 4,
+            exhaustion_defeat: 30,
+            relation_defeat: -5,
+        ),
+        // Campaigns and sieges of the player's companies against kingdoms.
+        campaigns: (
+            muster_hours: 12,
+            field_share_percent: 60,
+            max_rounds: 40,
+            loot_percent: 15,
+            exhaustion_victory: 35,
+            seat_hp_per_inhabitant: 8,
+            wall_defense_percent: 40,
+            siege_hours: 24,
+            siege_reparations_per_inhabitant: 2,
+        ),
+    ),
+    // Ruler ranks (docs/game_design.md §1): requirements on inhabitants, wealth (treasury plus
+    // stock at base prices), finished buildings (without walls and gates), territory tiles and
+    // a building type; prestige adds relation points with every AI kingdom.
+    // court_upkeep (doc §7 Hofhaltung): gold per day for officials, envoys and the court of a
+    // ruler of the rank, booked with the upkeep – from the town on, when gold is no longer
+    // short, about a twentieth to a tenth of the income of a town of the rank.
+    ranks: [
+        (id: "settlement", name: "Siedlung"),
+        (id: "village", name: "Dorf", population: 25, wealth: 1500, buildings: 12, prestige: 2),
+        (id: "market_town", name: "Marktflecken", population: 50, wealth: 4000, buildings: 25, building: "market", prestige: 4),
+        (id: "town", name: "Stadt", population: 100, wealth: 10000, buildings: 45, territory: 1600, building: "church", prestige: 6, court_upkeep: 15),
+        (id: "city", name: "Großstadt", population: 200, wealth: 25000, buildings: 80, territory: 2400, building: "school", prestige: 8, court_upkeep: 60),
+        (id: "kingdom", name: "Königreich", population: 350, wealth: 50000, buildings: 130, territory: 3500, building: "castle", prestige: 10, court_upkeep: 120),
+        (id: "empire", name: "Imperium", population: 600, wealth: 100000, buildings: 200, territory: 5000, prestige: 12, court_upkeep: 200),
+    ],
+)

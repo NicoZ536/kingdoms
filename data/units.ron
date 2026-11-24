@@ -1,0 +1,69 @@
+// Military unit types (docs/game_design.md §11).
+// name/plural: German display name and its plural („1 Bogenschütze“, „6 Bogenschützen“);
+// class: Infantry | Ranged | Cavalry | Siege (sprite role and combat behaviour);
+// attack/defense/ranged: combat strengths (ranged > 0 shoots up to `range` tiles, ranged units
+// shoot before the melee of a combat round); building_damage: damage per combat round against
+// walls, gates and buildings; hit_points: health of one unit (100 unless given);
+// bonus: extra attack in percent against a unit class; speed: multiplier of the citizen walking
+// speed; morale 1-100: base morale of a fresh unit;
+// cost: recruitment cost (gold + equipment from the storages); population: citizens leaving the
+// workforce per unit (siege engines: one operator and three crew); upkeep: pay in gold per day;
+// training_hours: game hours inside the training building; trained_at: military building;
+// support: extra requirement (cavalry needs horses: four riders per finished cattle farm).
+// Unlocks come from technologies (UnlockUnit). The Goods among the cost materials are the
+// equipment: a worn unit is refitted with one unit of each from the storages.
+#![enable(implicit_some)]
+[
+    (
+        id: "militia", name: "Miliz", plural: "Milizen", class: Infantry,
+        description: "Schnell ausgehobene Bürgerwehr mit Holzspießen und einfacher Ausrüstung.",
+        attack: 4, defense: 3, building_damage: 1, speed: 1.0, morale: 50,
+        cost: (gold: 10, materials: {"wood": 3}), population: 1, upkeep: 1,
+        training_hours: 4.0, trained_at: "barracks",
+    ),
+    (
+        id: "swordsman", name: "Schwertkämpfer", plural: "Schwertkämpfer", class: Infantry,
+        description: "Gut gerüstete Nahkämpfer, das Rückgrat jeder Armee.",
+        attack: 8, defense: 6, building_damage: 2, speed: 1.0, morale: 70,
+        cost: (gold: 40, materials: {"weapons": 1, "armor": 1}), population: 1, upkeep: 3,
+        training_hours: 12.0, trained_at: "barracks",
+    ),
+    (
+        id: "spearman", name: "Speerträger", plural: "Speerträger", class: Infantry,
+        description: "Verteidigungsstarke Infanterie, wirksam gegen Reiter.",
+        attack: 6, defense: 8, building_damage: 1, speed: 0.95, morale: 65,
+        bonus: (against: Cavalry, percent: 50),
+        cost: (gold: 30, materials: {"weapons": 1, "wood": 2}), population: 1, upkeep: 2,
+        training_hours: 10.0, trained_at: "barracks",
+    ),
+    (
+        id: "archer", name: "Bogenschütze", plural: "Bogenschützen", class: Ranged,
+        description: "Fernkämpfer, der Feinde schon vor den Mauern bekämpft.",
+        attack: 2, defense: 3, ranged: 7, range: 6, speed: 1.05, morale: 55,
+        cost: (gold: 30, materials: {"wood": 3, "leather": 1}), population: 1, upkeep: 2,
+        training_hours: 10.0, trained_at: "archer_post",
+    ),
+    (
+        id: "crossbowman", name: "Armbrustschütze", plural: "Armbrustschützen", class: Ranged,
+        description: "Durchschlagskräftiger Fernkämpfer mit schwerer Armbrust.",
+        attack: 3, defense: 5, ranged: 10, range: 7, building_damage: 1, speed: 0.9, morale: 60,
+        cost: (gold: 50, materials: {"weapons": 1, "wood": 2}), population: 1, upkeep: 3,
+        training_hours: 14.0, trained_at: "archer_post",
+    ),
+    (
+        id: "cavalry", name: "Kavallerie", plural: "Reiter", class: Cavalry,
+        description: "Schnelle, schlagkräftige Reiter, gefährlich für Schützen. Braucht Pferde aus der Viehzucht.",
+        attack: 10, defense: 7, building_damage: 1, hit_points: 120, speed: 1.8, morale: 80,
+        bonus: (against: Ranged, percent: 50),
+        cost: (gold: 100, materials: {"weapons": 1, "armor": 1, "leather": 1}), population: 1, upkeep: 6,
+        training_hours: 20.0, trained_at: "stables",
+        support: (building: "cattle_farm", units_per_building: 4),
+    ),
+    (
+        id: "siege", name: "Belagerungsgerät", plural: "Belagerungsgeräte", class: Siege,
+        description: "Rammbock und Katapult gegen Mauern und Tore; braucht eine Bedienmannschaft.",
+        attack: 2, defense: 2, ranged: 12, range: 8, building_damage: 20, hit_points: 200, speed: 0.5, morale: 50,
+        cost: (gold: 200, materials: {"planks": 20, "iron_bars": 5}), population: 4, upkeep: 8,
+        training_hours: 30.0, trained_at: "barracks",
+    ),
+]

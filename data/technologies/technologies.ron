@@ -1,0 +1,302 @@
+// Technologies (docs/game_design.md §9). This file is the single source of truth for unlocks:
+// every building, road and unit not unlocked here is available from the start.
+// cost_gold is paid when the technology reaches the front of the research queue and starts;
+// research_points / research rate = research time (rate: rules.ron research.base_points_per_hour
+// from the headquarters plus research_points_per_hour of staffed schools, buildings.ron).
+// UnlockUnit, UnitBonus and WallStrengthBonus take effect with the military phase.
+// Effects: UnlockBuilding, UnlockRoad, UnlockUnit, ProductionBonus(target: All | Category(c) |
+// Building(id), percent), FieldYieldBonus(crop, percent), IrrigationBonus(max_distance, percent),
+// SoilRegeneration, StorageBonus, ServiceRadiusBonus(building, tiles), HousingCapacityBonus,
+// TaxBonus, TradePriceBonus, UpkeepReduction, BuildSpeedBonus, ResearchSpeedBonus,
+// FireRiskReduction, DiseaseResistance, ToolWearReduction, UnitBonus(unit, attack_percent,
+// defense_percent), WallStrengthBonus.
+#![enable(implicit_some)]
+[
+    // ===== Landwirtschaft ==================================================================
+    (
+        id: "grain_farming", name: "Getreideanbau", area: Agriculture, cost_gold: 60, research_points: 24,
+        description: "Weizen- und Gerstenfelder, Mühlen und Bäckereien: die Grundlage für Brot.",
+        effects: [UnlockBuilding("wheat_farm"), UnlockBuilding("mill"), UnlockBuilding("bakery")],
+    ),
+    (
+        id: "animal_husbandry", name: "Tierhaltung", area: Agriculture, cost_gold: 80, research_points: 30,
+        prerequisites: ["grain_farming"],
+        description: "Rinder und Schafe liefern Fleisch, Milch, Häute und Wolle; Käsereien veredeln die Milch.",
+        effects: [UnlockBuilding("cattle_farm"), UnlockBuilding("sheep_farm"), UnlockBuilding("cheese_dairy")],
+    ),
+    (
+        id: "improved_plows", name: "Verbesserte Pflüge", area: Agriculture, cost_gold: 120, research_points: 40,
+        prerequisites: ["grain_farming"],
+        description: "Schwere Pflüge lockern den Boden tiefer: +15 % Ertrag auf allen Feldern.",
+        effects: [FieldYieldBonus(percent: 15)],
+    ),
+    (
+        id: "crop_rotation", name: "Fruchtwechsel", area: Agriculture, cost_gold: 150, research_points: 48,
+        prerequisites: ["improved_plows"],
+        description: "Wechselnde Feldfrüchte lassen die Fruchtbarkeit des Bodens schneller regenerieren.",
+        effects: [SoilRegeneration(percent: 50)],
+    ),
+    (
+        id: "irrigation", name: "Bewässerung", area: Agriculture, cost_gold: 200, research_points: 60,
+        prerequisites: ["crop_rotation"],
+        description: "Gräben leiten Wasser auf die Felder: +20 % Ertrag bis 6 Felder vom Wasser entfernt.",
+        effects: [IrrigationBonus(max_distance: 6, percent: 20)],
+    ),
+    (
+        id: "orchards_and_bees", name: "Obst- und Bienenzucht", area: Agriculture, cost_gold: 100, research_points: 36,
+        prerequisites: ["grain_farming"],
+        description: "Obstgärten und Imkereien liefern Obst und Honig.",
+        effects: [UnlockBuilding("orchard"), UnlockBuilding("apiary")],
+    ),
+    (
+        id: "winemaking", name: "Weinbau", area: Agriculture, cost_gold: 250, research_points: 72,
+        prerequisites: ["orchards_and_bees", "brickmaking"],
+        description: "Weinkellereien keltern aus Obst edlen Wein für wohlhabende Bürger.",
+        effects: [UnlockBuilding("winery")],
+    ),
+
+    // ===== Architektur =====================================================================
+    (
+        id: "architecture_1", name: "Architektur I", area: Architecture, cost_gold: 80, research_points: 30,
+        description: "Befestigte Straßen und geübte Bauleute: Straßen und 10 % schnellerer Bau.",
+        effects: [UnlockRoad("road"), BuildSpeedBonus(percent: 10)],
+    ),
+    (
+        id: "stone_masonry", name: "Steinbau", area: Architecture, cost_gold: 150, research_points: 50,
+        prerequisites: ["architecture_1"],
+        description: "Steinmetzkunst ermöglicht gepflasterte Straßen und Stadthäuser.",
+        effects: [UnlockRoad("paved"), UnlockBuilding("townhouse")],
+    ),
+    (
+        id: "improved_roofs", name: "Verbesserte Dächer", area: Architecture, cost_gold: 120, research_points: 40,
+        prerequisites: ["architecture_1"],
+        description: "Schindel- und Ziegeldächer halbieren die Brandgefahr.",
+        effects: [FireRiskReduction(percent: 50)],
+    ),
+    (
+        id: "larger_buildings", name: "Größere Gebäude", area: Architecture, cost_gold: 250, research_points: 80,
+        prerequisites: ["stone_masonry"],
+        description: "Zusätzliche Stockwerke: Wohnhäuser bieten 20 % mehr Platz; Marktplatz, Gasthaus, Fischerei und Imkerei lassen sich ausbauen.",
+        effects: [
+            HousingCapacityBonus(percent: 20), UnlockBuilding("grand_market"), UnlockBuilding("inn"),
+            UnlockBuilding("large_fishery"), UnlockBuilding("large_apiary"),
+        ],
+    ),
+    (
+        id: "representative_buildings", name: "Prachtbauten", area: Architecture, cost_gold: 400, research_points: 120,
+        prerequisites: ["larger_buildings", "fine_crafts"],
+        description: "Residenzen und Adelssitze für Wohlhabende und Adel; die Kirche lässt sich zum Dom ausbauen.",
+        effects: [UnlockBuilding("residence"), UnlockBuilding("manor"), UnlockBuilding("cathedral")],
+    ),
+
+    // ===== Handwerk ========================================================================
+    (
+        id: "brickmaking", name: "Ziegelbrennen", area: Crafts, cost_gold: 100, research_points: 36,
+        description: "Sandgruben, Ziegeleien und Töpfereien verarbeiten Ton, Sand und Kohle.",
+        effects: [UnlockBuilding("sand_pit"), UnlockBuilding("brickworks"), UnlockBuilding("pottery")],
+    ),
+    (
+        id: "textiles", name: "Textilhandwerk", area: Crafts, cost_gold: 100, research_points: 36,
+        prerequisites: ["animal_husbandry"],
+        description: "Webereien, Schneidereien und Gerbereien versorgen die Bürger mit Kleidung.",
+        effects: [UnlockBuilding("weaver"), UnlockBuilding("tailor"), UnlockBuilding("tannery")],
+    ),
+    (
+        id: "carpentry", name: "Tischlerhandwerk", area: Crafts, cost_gold: 120, research_points: 40,
+        prerequisites: ["architecture_1"],
+        description: "Tischlereien fertigen Möbel für gehobene Ansprüche.",
+        effects: [UnlockBuilding("carpenter")],
+    ),
+    (
+        id: "brewing", name: "Braukunst", area: Crafts, cost_gold: 120, research_points: 40,
+        prerequisites: ["grain_farming"],
+        description: "Brauereien und Gasthäuser: Bier und Geselligkeit.",
+        effects: [UnlockBuilding("brewery"), UnlockBuilding("tavern")],
+    ),
+    (
+        id: "fine_crafts", name: "Feinhandwerk", area: Crafts, cost_gold: 300, research_points: 90,
+        prerequisites: ["gold_mining", "textiles"],
+        description: "Goldschmiede und Kunsthandwerker schaffen Schmuck und Kunstgegenstände.",
+        effects: [UnlockBuilding("jeweler"), UnlockBuilding("artisan")],
+    ),
+    (
+        id: "guild_system", name: "Zunftwesen", area: Crafts, cost_gold: 250, research_points: 80,
+        prerequisites: ["carpentry", "textiles"],
+        description: "Zünfte sichern Qualität und Ausbildung: +10 % Tempo in allen Produktionsgebäuden; Holzfällerhütte, Sägewerk, Schmiede, Mühle, Bäckerei, Weberei, Schneiderei, Gerberei, Töpferei, Ziegelei, Tischlerei und Brauerei lassen sich ausbauen.",
+        effects: [
+            ProductionBonus(target: Category(Production), percent: 10), UnlockBuilding("lumber_camp"), UnlockBuilding("large_sawmill"),
+            UnlockBuilding("master_smithy"), UnlockBuilding("large_mill"), UnlockBuilding("large_bakery"),
+            UnlockBuilding("large_weaver"), UnlockBuilding("large_tailor"), UnlockBuilding("large_tannery"),
+            UnlockBuilding("large_pottery"), UnlockBuilding("large_brickworks"), UnlockBuilding("large_carpenter"),
+            UnlockBuilding("large_brewery"),
+        ],
+    ),
+
+    // ===== Bergbau =========================================================================
+    (
+        id: "mining", name: "Bergbau", area: Mining, cost_gold: 100, research_points: 36,
+        description: "Eisen- und Kohleminen sowie Köhlereien.",
+        effects: [UnlockBuilding("iron_mine"), UnlockBuilding("coal_mine"), UnlockBuilding("charcoal_kiln")],
+    ),
+    (
+        id: "smelting", name: "Verhüttung", area: Mining, cost_gold: 150, research_points: 48,
+        prerequisites: ["mining"],
+        description: "Eisenschmelzen und Schmieden: Eisenbarren und Werkzeuge aus eigener Herstellung.",
+        effects: [UnlockBuilding("smelter"), UnlockBuilding("smithy")],
+    ),
+    (
+        id: "steel_tools", name: "Gehärtete Werkzeuge", area: Mining, cost_gold: 200, research_points: 60,
+        prerequisites: ["smelting"],
+        description: "Gehärteter Stahl hält länger: Werkzeuge nutzen sich halb so schnell ab.",
+        effects: [ToolWearReduction(percent: 50)],
+    ),
+    (
+        id: "deep_mining", name: "Tiefbau", area: Mining, cost_gold: 250, research_points: 72,
+        prerequisites: ["smelting"],
+        description: "Stollen, Pumpen und Hochöfen: +25 % Förderung in Steinbrüchen, Eisen- und Kohleminen; Steinbruch und Eisenschmelze lassen sich ausbauen.",
+        effects: [
+            UnlockBuilding("large_quarry"), UnlockBuilding("blast_furnace"),
+            ProductionBonus(target: Building("quarry"), percent: 25),
+            ProductionBonus(target: Building("iron_mine"), percent: 25),
+            ProductionBonus(target: Building("coal_mine"), percent: 25),
+        ],
+    ),
+    (
+        id: "gold_mining", name: "Goldbergbau", area: Mining, cost_gold: 300, research_points: 90,
+        prerequisites: ["deep_mining"],
+        description: "Goldminen fördern das Erz für Schmuck.",
+        effects: [UnlockBuilding("gold_mine")],
+    ),
+
+    // ===== Handel ==========================================================================
+    (
+        id: "trading", name: "Handelswesen", area: Trade, cost_gold: 120, research_points: 40,
+        description: "Handelskontore schicken Karawanen zu fremden Königreichen.",
+        effects: [UnlockBuilding("trading_post")],
+    ),
+    (
+        id: "trade_agreements", name: "Handelsverträge", area: Trade, cost_gold: 200, research_points: 64,
+        prerequisites: ["trading"],
+        description: "Verträge und Handelsstraßen: 10 % bessere Preise im Fernhandel.",
+        effects: [UnlockRoad("trade_road"), TradePriceBonus(percent: 10)],
+    ),
+    (
+        id: "efficient_markets", name: "Effizientere Märkte", area: Trade, cost_gold: 150, research_points: 48,
+        prerequisites: ["trading"],
+        description: "Marktordnungen und Händlergilden: Marktplätze versorgen 6 Felder weiter.",
+        effects: [ServiceRadiusBonus(building: "market", tiles: 6)],
+    ),
+    (
+        id: "banking", name: "Geldwechsel", area: Trade, cost_gold: 300, research_points: 96,
+        prerequisites: ["trade_agreements", "bookkeeping"],
+        description: "Wechselstuben und Kreditbriefe: bessere Handelspreise und 5 % mehr Steuern.",
+        effects: [TradePriceBonus(percent: 10), TaxBonus(percent: 5)],
+    ),
+
+    // ===== Medizin =========================================================================
+    (
+        id: "herbalism", name: "Kräuterkunde", area: Medicine, cost_gold: 80, research_points: 30,
+        description: "Heilkräuter lindern Krankheiten: 20 % geringeres Seuchenrisiko.",
+        effects: [DiseaseResistance(percent: 20)],
+    ),
+    (
+        id: "medicine", name: "Medizin", area: Medicine, cost_gold: 200, research_points: 64,
+        prerequisites: ["herbalism", "schooling"],
+        description: "Ausgebildete Heiler und Krankenhäuser.",
+        effects: [UnlockBuilding("hospital")],
+    ),
+    (
+        id: "hygiene", name: "Hygiene", area: Medicine, cost_gold: 250, research_points: 80,
+        prerequisites: ["medicine"],
+        description: "Sauberes Wasser und Badehäuser: 40 % geringeres Seuchenrisiko, Brunnen reichen 4 Felder weiter; das Krankenhaus lässt sich zum Spital ausbauen.",
+        effects: [DiseaseResistance(percent: 40), ServiceRadiusBonus(building: "well", tiles: 4), UnlockBuilding("infirmary")],
+    ),
+
+    // ===== Militär =========================================================================
+    (
+        id: "militia_training", name: "Bürgerwehr", area: Military, cost_gold: 100, research_points: 36,
+        description: "Kasernen und Wachtürme; Miliz und Speerträger schützen die Siedlung.",
+        effects: [UnlockBuilding("barracks"), UnlockBuilding("watchtower"), UnlockUnit("militia"), UnlockUnit("spearman")],
+    ),
+    (
+        id: "archery", name: "Bogenschießen", area: Military, cost_gold: 120, research_points: 40,
+        prerequisites: ["militia_training"],
+        description: "Bogenschützenposten bilden Bogenschützen aus.",
+        effects: [UnlockBuilding("archer_post"), UnlockUnit("archer")],
+    ),
+    (
+        id: "weapon_smithing", name: "Waffenschmiedekunst", area: Military, cost_gold: 200, research_points: 64,
+        prerequisites: ["militia_training", "smelting"],
+        description: "Waffenschmieden rüsten Schwertkämpfer aus.",
+        effects: [UnlockBuilding("weaponsmith"), UnlockUnit("swordsman")],
+    ),
+    (
+        id: "city_walls", name: "Stadtmauern", area: Military, cost_gold: 200, research_points: 64,
+        prerequisites: ["stone_masonry", "militia_training"],
+        description: "Mauern und Tore halten Feinde und Räuber fern; Wachtürme lassen sich zu Wehrtürmen, Kasernen zu Garnisonen ausbauen.",
+        effects: [UnlockBuilding("wall"), UnlockBuilding("gate"), UnlockBuilding("stone_tower"), UnlockBuilding("garrison")],
+    ),
+    (
+        id: "crossbows", name: "Armbrüste", area: Military, cost_gold: 250, research_points: 80,
+        prerequisites: ["archery", "weapon_smithing"],
+        description: "Armbrustschützen; bessere Ausbildung stärkt auch Bogenschützen (+10 % Angriff); Bogenschützenposten lassen sich zu Schützentürmen ausbauen.",
+        effects: [
+            UnlockUnit("crossbowman"), UnitBonus(unit: "archer", attack_percent: 10, defense_percent: 0),
+            UnlockBuilding("archer_tower"),
+        ],
+    ),
+    (
+        id: "cavalry", name: "Reiterei", area: Military, cost_gold: 300, research_points: 90,
+        prerequisites: ["animal_husbandry", "weapon_smithing"],
+        description: "Stallungen bilden schnelle Kavallerie aus; sie lassen sich zum Gestüt ausbauen.",
+        effects: [UnlockBuilding("stables"), UnlockUnit("cavalry"), UnlockBuilding("stud_farm")],
+    ),
+    (
+        id: "siege_engineering", name: "Belagerungstechnik", area: Military, cost_gold: 350, research_points: 110,
+        prerequisites: ["city_walls", "carpentry"],
+        description: "Belagerungsgeräte brechen feindliche Mauern; eigene Mauern werden 25 % stärker.",
+        effects: [UnlockUnit("siege"), WallStrengthBonus(percent: 25)],
+    ),
+    (
+        id: "fortification", name: "Festungsbau", area: Military, cost_gold: 500, research_points: 150,
+        prerequisites: ["city_walls"],
+        description: "Die Burg wird zum Hauptquartier (neu gebaut oder aus dem Rathaus ausgebaut); Mauern werden 25 % stärker.",
+        effects: [UnlockBuilding("castle"), WallStrengthBonus(percent: 25)],
+    ),
+
+    // ===== Verwaltung ======================================================================
+    (
+        id: "bookkeeping", name: "Buchhaltung", area: Administration, cost_gold: 80, research_points: 30,
+        description: "Ordentliche Bücher: 10 % mehr Steuereinnahmen.",
+        effects: [TaxBonus(percent: 10)],
+    ),
+    (
+        id: "clergy", name: "Kirchenordnung", area: Administration, cost_gold: 100, research_points: 36,
+        description: "Pfarreien und Kirchen stärken den Glauben der Bewohner.",
+        effects: [UnlockBuilding("church")],
+    ),
+    (
+        id: "schooling", name: "Schulwesen", area: Administration, cost_gold: 150, research_points: 48,
+        prerequisites: ["bookkeeping"],
+        description: "Schulen bilden Kinder aus und liefern Forschungspunkte.",
+        effects: [UnlockBuilding("school")],
+    ),
+    (
+        id: "extended_storage", name: "Erweiterte Lagerhaltung", area: Administration, cost_gold: 150, research_points: 48,
+        prerequisites: ["bookkeeping"],
+        description: "Bessere Lagerordnung: +50 % Kapazität in allen Lagern.",
+        effects: [StorageBonus(percent: 50)],
+    ),
+    (
+        id: "civil_service", name: "Verwaltungswesen", area: Administration, cost_gold: 250, research_points: 80,
+        prerequisites: ["schooling"],
+        description: "Beamte und Schreiber senken den Gebäudeunterhalt um 15 %.",
+        effects: [UpkeepReduction(percent: 15)],
+    ),
+    (
+        id: "scholarship", name: "Gelehrtentum", area: Administration, cost_gold: 300, research_points: 96,
+        prerequisites: ["schooling"],
+        description: "Gelehrte und Bibliotheken: Forschung läuft 25 % schneller; die Schule lässt sich zur Akademie ausbauen.",
+        effects: [ResearchSpeedBonus(percent: 25), UnlockBuilding("academy")],
+    ),
+]

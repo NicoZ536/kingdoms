@@ -1,0 +1,14 @@
+// Road types (docs/game_design.md §5.6). Unlocks come from technologies (UnlockRoad);
+// types not unlocked by any technology are available from the start.
+// speed = walking speed multiplier; bridge costs are per water tile.
+#![enable(implicit_some)]
+[
+    (id: "path",       name: "Trampelpfad",         cost: (gold: 0),                                         speed: 1.0),
+    (id: "gravel",     name: "Schotterweg",         cost: (gold: 1, materials: {"stone": 1}),                speed: 1.15),
+    (id: "road",       name: "Straße",              cost: (gold: 2, materials: {"stone": 1}),                speed: 1.25),
+    (id: "paved",      name: "Gepflasterte Straße", cost: (gold: 4, materials: {"stone": 2, "sand": 1}),     speed: 1.4),
+    (id: "trade_road", name: "Handelsstraße",       cost: (gold: 6, materials: {"stone": 2, "sand": 1}),     speed: 1.5,
+        trade_bonus_percent: 15),
+    (id: "bridge",     name: "Brücke",              cost: (gold: 15, materials: {"planks": 4, "stone": 2}),  speed: 1.25,
+        bridge: (max_span: 6, shallow_water_only: true)),
+]

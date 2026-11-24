@@ -1,0 +1,38 @@
+// German names of citizens (docs/game_design.md §6). Children inherit the family name of
+// their household; first names are drawn by sex from the state's random generator.
+(
+    male: [
+        "Albrecht", "Andreas", "Anselm", "Arnold", "Bartholomäus", "Benedikt", "Bernhard", "Burkhard",
+        "Christoph", "Dietrich", "Eberhard", "Eckhart", "Florian", "Friedrich", "Georg", "Gerhard",
+        "Gottfried", "Götz", "Gunther", "Hans", "Hartmut", "Heinrich", "Hermann", "Jakob",
+        "Johann", "Jörg", "Jürgen", "Kaspar", "Kilian", "Konrad", "Leonhard", "Lorenz",
+        "Lothar", "Ludwig", "Markus", "Martin", "Matthäus", "Michael", "Nikolaus", "Oswald",
+        "Otto", "Paul", "Peter", "Philipp", "Reinhold", "Rüdiger", "Rupert", "Sebastian",
+        "Siegfried", "Simon", "Stefan", "Thomas", "Tobias", "Ulrich", "Urban", "Valentin",
+        "Veit", "Walther", "Wendelin", "Wilhelm", "Wolfgang",
+    ],
+    female: [
+        "Adelheid", "Agnes", "Anna", "Barbara", "Beatrix", "Bertha", "Brigitte", "Clara",
+        "Dorothea", "Elisabeth", "Elsbeth", "Emma", "Ermengard", "Eva", "Felicitas", "Gertrud",
+        "Gisela", "Grete", "Hedwig", "Helene", "Hildegard", "Irmgard", "Johanna", "Judith",
+        "Juliane", "Katharina", "Käthe", "Kunigunde", "Liesel", "Luise", "Magdalena", "Margarethe",
+        "Maria", "Marlene", "Mechthild", "Ottilie", "Petronella", "Regina", "Rosina", "Sabina",
+        "Sophia", "Susanna", "Ursula", "Veronika", "Walburga", "Wilhelmine", "Theresia", "Rosalie",
+        "Franziska", "Kreszenz", "Jutta", "Hiltrud", "Gudrun", "Mathilde", "Ilse", "Lena",
+    ],
+    family: [
+        "Albrecht", "Arnold", "Bauer", "Baumann", "Beck", "Becker", "Berger", "Bergmann",
+        "Böhm", "Brandt", "Braun", "Busch", "Dietrich", "Engel", "Fischer", "Frank",
+        "Franke", "Friedrich", "Fuchs", "Gärtner", "Graf", "Groß", "Günther", "Haas",
+        "Hahn", "Hartmann", "Heinrich", "Herrmann", "Hoffmann", "Hofmann", "Horn", "Huber",
+        "Jäger", "Jung", "Kaiser", "Keller", "Klein", "Koch", "Köhler", "König",
+        "Krämer", "Kraus", "Krause", "Krüger", "Kuhn", "Kühn", "Lang", "Lange",
+        "Lehmann", "Lorenz", "Ludwig", "Martin", "Mayer", "Meier", "Meyer", "Möller",
+        "Müller", "Neumann", "Otto", "Peters", "Pfeiffer", "Pohl", "Richter", "Roth",
+        "Sauer", "Schäfer", "Schmidt", "Schmitt", "Schmitz", "Schneider", "Scholz", "Schreiber",
+        "Schröder", "Schulte", "Schulz", "Schumacher", "Schuster", "Schwarz", "Seidel", "Simon",
+        "Sommer", "Stein", "Töpfer", "Vogel", "Vogt", "Voigt", "Wagner", "Walter",
+        "Weber", "Weiß", "Werner", "Winkler", "Winter", "Wolf", "Wolff", "Ziegler",
+        "Zimmermann",
+    ],
+)

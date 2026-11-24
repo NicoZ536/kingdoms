@@ -1,0 +1,1868 @@
+[
+  {
+    "id": "menu_theme",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/menu_theme.ogg"
+    ],
+    "loop": false,
+    "description": "Main menu theme: majestic, hopeful medieval orchestral piece with lute, strings, soft choir, slow build",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "peaceful_dawn",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/peaceful_dawn.ogg"
+    ],
+    "loop": false,
+    "description": "Calm morning in a small village: lute, recorder, harp, gentle and warm",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "peaceful_fields",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/peaceful_fields.ogg"
+    ],
+    "loop": false,
+    "description": "Pastoral spring/summer music: hurdy-gurdy, flute, light percussion, carefree",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "peaceful_village",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/peaceful_village.ogg"
+    ],
+    "loop": false,
+    "description": "Bustling-but-relaxed village life: fiddle, lute, frame drum, dance-like 6/8",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "peaceful_river",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/peaceful_river.ogg"
+    ],
+    "loop": false,
+    "description": "Reflective, flowing melody: harp, cello, soft recorder",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "prosperous_city",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/prosperous_city.ogg"
+    ],
+    "loop": false,
+    "description": "Thriving medieval town: brass, strings, festive percussion, proud and uplifting",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "prosperous_market",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/prosperous_market.ogg"
+    ],
+    "loop": false,
+    "description": "Busy market day: bagpipe, fiddle, tambourine, lively folk dance",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "royal_court",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/royal_court.ogg"
+    ],
+    "loop": false,
+    "description": "Regal court music: harpsichord-like plucked strings, recorders, stately dance",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "winter_hearth",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/winter_hearth.ogg"
+    ],
+    "loop": false,
+    "description": "Cold winter, warm hearth: slow strings, celesta-like bells, solo voice humming",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "winter_snowfall",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/winter_snowfall.ogg"
+    ],
+    "loop": false,
+    "description": "Quiet snowfall: sparse harp and low drone, melancholic but hopeful",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "night_watch",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/night_watch.ogg"
+    ],
+    "loop": false,
+    "description": "Night over the town: soft low strings, distant flute, very calm",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "tension_unrest",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/tension_unrest.ogg"
+    ],
+    "loop": false,
+    "description": "Unrest and hardship: minor key, low strings, frame drum heartbeat, uneasy",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "tension_famine",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/tension_famine.ogg"
+    ],
+    "loop": false,
+    "description": "Shortage and hunger: sparse, mournful fiddle and drone",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "war_march",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/war_march.ogg"
+    ],
+    "loop": false,
+    "description": "Armies marching: war drums, horns, low male choir, driving rhythm",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "war_siege",
+    "channel": "Music",
+    "kind": "music",
+    "expected_files": [
+      "music/war_siege.ogg"
+    ],
+    "loop": false,
+    "description": "Siege battle: intense percussion, brass stabs, dramatic choir",
+    "text": null,
+    "recommended_length_s": 180.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_birds_day",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/birds_day.ogg"
+    ],
+    "loop": true,
+    "description": "Looping daytime countryside: songbirds, light breeze",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_night",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/night_crickets.ogg"
+    ],
+    "loop": true,
+    "description": "Looping night: crickets, distant owl, very calm",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_wind",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/wind_meadow.ogg"
+    ],
+    "loop": true,
+    "description": "Looping soft wind over meadows",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_winter_wind",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/winter_wind.ogg"
+    ],
+    "loop": true,
+    "description": "Looping cold winter wind, occasional gusts",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_river",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/river.ogg"
+    ],
+    "loop": true,
+    "description": "Looping gentle river stream",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_sea",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/sea_waves.ogg"
+    ],
+    "loop": true,
+    "description": "Looping calm sea waves on a shore",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_forest",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/forest.ogg"
+    ],
+    "loop": true,
+    "description": "Looping forest: leaves rustling, woodpecker, birds",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_rain",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/rain.ogg"
+    ],
+    "loop": true,
+    "description": "Looping steady rain",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_storm",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/storm.ogg"
+    ],
+    "loop": true,
+    "description": "Looping heavy storm with rain and distant thunder",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_town",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/town_bustle.ogg"
+    ],
+    "loop": true,
+    "description": "Looping medieval town bustle: footsteps, distant voices, carts, no modern sounds",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "amb_market",
+    "channel": "Ambience",
+    "kind": "ambience",
+    "expected_files": [
+      "ambience/market_crowd.ogg"
+    ],
+    "loop": true,
+    "description": "Looping market crowd murmur with merchants calling (unintelligible)",
+    "text": null,
+    "recommended_length_s": 60.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_place_building",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/place_building.ogg"
+    ],
+    "loop": false,
+    "description": "Short wooden thump + rope creak when placing a building",
+    "text": null,
+    "recommended_length_s": 0.8,
+    "variations": 1
+  },
+  {
+    "id": "sfx_construction",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/construction_1.ogg",
+      "sfx/construction_2.ogg"
+    ],
+    "loop": false,
+    "description": "Hammering on wood and sawing at a construction site (2 s)",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 2
+  },
+  {
+    "id": "sfx_construction_complete",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/construction_complete.ogg"
+    ],
+    "loop": false,
+    "description": "Satisfying completion: final hammer strike + short cheerful chime",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_demolish",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/demolish.ogg"
+    ],
+    "loop": false,
+    "description": "Wooden structure collapsing, planks and dust",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_road_place",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/road_place.ogg"
+    ],
+    "loop": false,
+    "description": "Shovel into gravel / stones being laid",
+    "text": null,
+    "recommended_length_s": 0.8,
+    "variations": 1
+  },
+  {
+    "id": "sfx_upgrade",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/upgrade.ogg"
+    ],
+    "loop": false,
+    "description": "Building upgraded: rising chime with a soft brass note",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_downgrade",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/downgrade.ogg"
+    ],
+    "loop": false,
+    "description": "Haus steigt ab: fallende, gedämpfte Glockenfolge, leicht wehmütig",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_road_remove",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/road_remove.ogg"
+    ],
+    "loop": false,
+    "description": "Straße wird entfernt: Spitzhacke lockert Steine, Schotter rieselt",
+    "text": null,
+    "recommended_length_s": 1.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_tree_plant",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/tree_plant.ogg"
+    ],
+    "loop": false,
+    "description": "Setzling wird gepflanzt: Spaten sticht in Erde, Erde wird angedrückt",
+    "text": null,
+    "recommended_length_s": 1.2,
+    "variations": 1
+  },
+  {
+    "id": "sfx_wood_chop",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/wood_chop.ogg"
+    ],
+    "loop": false,
+    "description": "Axe chopping a tree, two strikes",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_tree_fall",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/tree_fall.ogg"
+    ],
+    "loop": false,
+    "description": "Tree creaking and falling onto grass",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_saw",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/sawmill.ogg"
+    ],
+    "loop": false,
+    "description": "Hand saw / water-powered saw cutting planks",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_stone_pick",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/stone_pick.ogg"
+    ],
+    "loop": false,
+    "description": "Pickaxe striking stone in a quarry",
+    "text": null,
+    "recommended_length_s": 1.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_anvil",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/anvil.ogg"
+    ],
+    "loop": false,
+    "description": "Blacksmith hammer on anvil, three rhythmic strikes",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_mill",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/windmill.ogg"
+    ],
+    "loop": false,
+    "description": "Windmill sails creaking and grinding stones",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_bakery",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/bakery.ogg"
+    ],
+    "loop": false,
+    "description": "Oven fire crackle and dough being kneaded",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_brewery",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/brewery.ogg"
+    ],
+    "loop": false,
+    "description": "Bubbling vats and wooden barrels",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_loom",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/loom.ogg"
+    ],
+    "loop": false,
+    "description": "Wooden weaving loom clacking",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_kiln",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/kiln.ogg"
+    ],
+    "loop": false,
+    "description": "Kiln or charcoal pile: low roar of a stoked fire, crackling embers, a shovel of fuel thrown in",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_workshop",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/workshop.ogg"
+    ],
+    "loop": false,
+    "description": "Craft workshop: a hide scraped on a wooden beam, small mallet and chisel taps",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_bees",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/bees.ogg"
+    ],
+    "loop": false,
+    "description": "Beehives: calm humming swarm, a wooden frame lifted out of a hive",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_mine",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/mine.ogg"
+    ],
+    "loop": false,
+    "description": "Pickaxes echoing inside a mine, rocks falling into a cart",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_cow",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/cow.ogg"
+    ],
+    "loop": false,
+    "description": "Single cow moo",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_sheep",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/sheep.ogg"
+    ],
+    "loop": false,
+    "description": "Sheep bleating",
+    "text": null,
+    "recommended_length_s": 1.2,
+    "variations": 1
+  },
+  {
+    "id": "sfx_chicken",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/chicken.ogg"
+    ],
+    "loop": false,
+    "description": "Chickens clucking",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_church_bell",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/church_bell.ogg"
+    ],
+    "loop": false,
+    "description": "Medieval church bell ringing three times",
+    "text": null,
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_harvest",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/harvest.ogg"
+    ],
+    "loop": false,
+    "description": "Scythe swishes through wheat, bundles being tied",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_fishing",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/fishing.ogg"
+    ],
+    "loop": false,
+    "description": "Net splashing into water, small boat creak",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_cart",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/cart.ogg"
+    ],
+    "loop": false,
+    "description": "Wooden cart wheels rolling on a dirt road, horse hooves",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_coins",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/coins.ogg"
+    ],
+    "loop": false,
+    "description": "Gold coins clinking into a purse",
+    "text": null,
+    "recommended_length_s": 1.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_event_good",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/event_good.ogg"
+    ],
+    "loop": false,
+    "description": "Positive event fanfare: short bright horns (2 s)",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_event_bad",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/event_bad.ogg"
+    ],
+    "loop": false,
+    "description": "Negative event sting: low ominous horn and drum hit",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_fire",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/fire.ogg"
+    ],
+    "loop": false,
+    "description": "Building on fire: roaring flames, crackling wood",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_alarm_bell",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/alarm_bell.ogg"
+    ],
+    "loop": false,
+    "description": "Urgent alarm bell ringing fast",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_war_horn",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/war_horn.ogg"
+    ],
+    "loop": false,
+    "description": "Deep war horn blast",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_battle",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/battle.ogg"
+    ],
+    "loop": false,
+    "description": "Distant battle: swords clashing, shouting, arrows",
+    "text": null,
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_research_complete",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/research_complete.ogg"
+    ],
+    "loop": false,
+    "description": "Discovery: quill scratch then a warm magical chime",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_birth",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/birth.ogg"
+    ],
+    "loop": false,
+    "description": "Gentle soft chime for a newborn (no crying)",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_death_bell",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/death_bell.ogg"
+    ],
+    "loop": false,
+    "description": "Ein Bewohner ist gestorben: einzelner, ferner Schlag einer tiefen Totenglocke",
+    "text": null,
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_wedding",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/wedding.ogg"
+    ],
+    "loop": false,
+    "description": "Hochzeit: kurzes, fröhliches Glockenspiel mit zwei hellen Glocken",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_season_change",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/season_change.ogg"
+    ],
+    "loop": false,
+    "description": "Seasonal transition: soft harp glissando",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_rank_up",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/rank_up.ogg"
+    ],
+    "loop": false,
+    "description": "Royal fanfare for a new realm rank (4 s)",
+    "text": null,
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_trade",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/trade.ogg"
+    ],
+    "loop": false,
+    "description": "Trade completed: coins + handshake-like wooden knock",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_event_pending",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/event_pending.ogg"
+    ],
+    "loop": false,
+    "description": "Ein Ereignis verlangt eine Entscheidung: Pergament wird entrollt, kurzer Trommelwirbel",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_event_resolved",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/event_resolved.ogg"
+    ],
+    "loop": false,
+    "description": "Entscheidung getroffen: Siegel wird in warmes Wachs gedrückt",
+    "text": null,
+    "recommended_length_s": 1.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_flood",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/flood.ogg"
+    ],
+    "loop": false,
+    "description": "Überschwemmung: rauschendes Wasser, das durch Gassen strömt, knarrendes Holz",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_storm_damage",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/storm_damage.ogg"
+    ],
+    "loop": false,
+    "description": "Sturmschaden: heulende Böe, splitterndes Holz, herabfallende Dachschindeln",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_plague",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/plague.ogg"
+    ],
+    "loop": false,
+    "description": "Seuche: gedämpftes Husten mehrerer Menschen, ferne Totenglocke",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_raid",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/raid.ogg"
+    ],
+    "loop": false,
+    "description": "Räuberüberfall: raue Rufe, splitternde Kisten, davongaloppierende Pferde",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_deposit_found",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/deposit_found.ogg"
+    ],
+    "loop": false,
+    "description": "Neues Vorkommen: Spitzhacke trifft hell klingend auf Erz, kurzer Glanzton",
+    "text": null,
+    "recommended_length_s": 2.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_war_drums",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/war_drums.ogg"
+    ],
+    "loop": false,
+    "description": "Kriegserklärung: schwere Kriegstrommeln im langsamen Marschschritt, ein ferner Hornstoß (3 s)",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_victory",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/victory.ogg"
+    ],
+    "loop": false,
+    "description": "Sieg in der Schlacht: helle Fanfare aus zwei Trompeten, Jubelrufe der Soldaten",
+    "text": null,
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_defeat",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/defeat.ogg"
+    ],
+    "loop": false,
+    "description": "Niederlage: tiefes, absteigendes Horn, gedämpfte Trommel, Stille danach",
+    "text": null,
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_treaty",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/treaty.ogg"
+    ],
+    "loop": false,
+    "description": "Vertrag besiegelt: Feder kratzt über Pergament, Siegel wird in Wachs gedrückt, kurzer Glockenton",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_herald",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/herald.ogg"
+    ],
+    "loop": false,
+    "description": "Eine Gesandtschaft trifft ein: kurze Heroldsfanfare, Pferdehufe kommen zum Stehen",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_caravan_bell",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/caravan_bell.ogg"
+    ],
+    "loop": false,
+    "description": "Karawane am Handelskontor: Glöckchen am Zaumzeug, knarrende Wagenräder, Esel schnaubt",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "sfx_wall_break",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/wall_break.ogg"
+    ],
+    "loop": false,
+    "description": "Feinde brechen eine Mauer oder ein Tor auf: dumpfer Rammbockstoß, berstendes Holz, fallende Steine",
+    "text": null,
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "sfx_drill",
+    "channel": "Effects",
+    "kind": "sfx",
+    "expected_files": [
+      "sfx/drill.ogg"
+    ],
+    "loop": false,
+    "description": "Rekruten melden sich: Exerzierrufe eines Ausbilders, Stiefel im Gleichschritt, Speere klirren",
+    "text": null,
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "ui_click",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/click.ogg"
+    ],
+    "loop": false,
+    "description": "Soft wooden button click",
+    "text": null,
+    "recommended_length_s": 0.1,
+    "variations": 1
+  },
+  {
+    "id": "ui_hover",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/hover.ogg"
+    ],
+    "loop": false,
+    "description": "Very subtle paper rustle tick",
+    "text": null,
+    "recommended_length_s": 0.05,
+    "variations": 1
+  },
+  {
+    "id": "ui_open",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/open.ogg"
+    ],
+    "loop": false,
+    "description": "Parchment unrolling (window opens)",
+    "text": null,
+    "recommended_length_s": 0.4,
+    "variations": 1
+  },
+  {
+    "id": "ui_close",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/close.ogg"
+    ],
+    "loop": false,
+    "description": "Parchment rolling up (window closes)",
+    "text": null,
+    "recommended_length_s": 0.4,
+    "variations": 1
+  },
+  {
+    "id": "ui_error",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/error.ogg"
+    ],
+    "loop": false,
+    "description": "Dull wooden knock indicating invalid action",
+    "text": null,
+    "recommended_length_s": 0.2,
+    "variations": 1
+  },
+  {
+    "id": "ui_notification",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/notification.ogg"
+    ],
+    "loop": false,
+    "description": "Small bell ding for a new message",
+    "text": null,
+    "recommended_length_s": 0.4,
+    "variations": 1
+  },
+  {
+    "id": "ui_select",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/select.ogg"
+    ],
+    "loop": false,
+    "description": "Short pluck of a lute string (select building/tool)",
+    "text": null,
+    "recommended_length_s": 0.15,
+    "variations": 1
+  },
+  {
+    "id": "ui_speed",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/speed.ogg"
+    ],
+    "loop": false,
+    "description": "Mechanical clockwork tick (game speed changed)",
+    "text": null,
+    "recommended_length_s": 0.2,
+    "variations": 1
+  },
+  {
+    "id": "ui_pause",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/pause.ogg"
+    ],
+    "loop": false,
+    "description": "Soft muted drum tap (pause)",
+    "text": null,
+    "recommended_length_s": 0.2,
+    "variations": 1
+  },
+  {
+    "id": "ui_rotate",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/rotate.ogg"
+    ],
+    "loop": false,
+    "description": "Wooden swivel click (rotate building)",
+    "text": null,
+    "recommended_length_s": 0.15,
+    "variations": 1
+  },
+  {
+    "id": "ui_save",
+    "channel": "Ui",
+    "kind": "ui",
+    "expected_files": [
+      "ui/save.ogg"
+    ],
+    "loop": false,
+    "description": "Quill writing + wax seal stamp (game saved)",
+    "text": null,
+    "recommended_length_s": 0.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_welcome",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/welcome.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Majestät, willkommen in Eurem neuen Land. Möge Euer Reich gedeihen!",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_building_complete",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/building_complete.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Der Bau ist vollendet, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_food_shortage",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/food_shortage.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät, unsere Vorräte gehen zur Neige. Das Volk hungert!",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_low_happiness",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/low_happiness.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Das Volk ist unzufrieden, Majestät. Es murrt in den Gassen.",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_treasury_low",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/treasury_low.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Die Schatzkammer ist beinahe leer, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_research_complete",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/research_complete.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Unsere Gelehrten haben eine neue Erkenntnis gewonnen!",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_immigrants",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/immigrants.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Neue Siedler sind in unserem Reich eingetroffen.",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_trade_offer",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/trade_offer.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Ein Händler bittet um Audienz, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_war_declared",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/war_declared.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät! Man hat uns den Krieg erklärt!",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_peace",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/peace.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Der Frieden ist besiegelt. Möge er lange währen.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_enemy_attack",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/enemy_attack.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Zu den Waffen! Feinde greifen an!",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_fire",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/fire.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Feuer! In der Stadt brennt es!",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_plague",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/plague.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Eine Seuche breitet sich aus, Majestät. Wir brauchen Heiler!",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_rank_up",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/rank_up.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Euer Ruhm wächst, Majestät! Unser Reich ist aufgestiegen.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_harvest_good",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/harvest_good.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Eine prächtige Ernte, Majestät! Die Speicher sind gefüllt.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_harvest_bad",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/harvest_bad.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Die Ernte ist schlecht ausgefallen, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_spring",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/spring.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Der Frühling ist gekommen. Zeit zur Aussaat!",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_summer",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/summer.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Der Sommer beginnt. Die Felder stehen in voller Pracht.",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_autumn",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/autumn.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Der Herbst naht. Bringt die Ernte ein!",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_winter",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/winter.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Der Winter bricht herein. Sorgt für Holz und Vorräte!",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_raiders",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/raiders.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Räuber überfallen unsere Höfe, Majestät!",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_game_saved",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/game_saved.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Die Chronik wurde festgehalten.",
+    "recommended_length_s": 2.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_bankrupt",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/bankrupt.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät, die Staatskasse ist leer! Wir sind bankrott.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_emigrants",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/emigrants.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Familien verlassen unser Reich, Majestät. Sie sind unzufrieden.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_deposit_depleted",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/deposit_depleted.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Ein Vorkommen ist erschöpft, Majestät. Wir müssen neue Lagerstätten erschließen.",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_storage_full",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/storage_full.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Unsere Lager sind voll, Majestät! Waren gehen verloren.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_event_decision",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/event_decision.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Majestät, eine Entscheidung erwartet Euch.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_flood",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/flood.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Das Wasser steigt, Majestät! Der Fluss tritt über die Ufer.",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_storm_damage",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/storm_damage.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Der Sturm hat Dächer abgedeckt, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_drought",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/drought.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Die Felder dörren aus, Majestät. Es fehlt an Regen.",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_refugees",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/refugees.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Flüchtlinge bitten um Aufnahme in unserem Reich, Majestät.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_festival",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/festival.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Das Volk möchte ein Fest feiern, Majestät!",
+    "recommended_length_s": 3.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_unrest",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/unrest.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Unruhe im Volk, Majestät! Man verlangt Euer Gehör.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_deposit_found",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/deposit_found.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Unsere Späher melden neue Vorkommen, Majestät!",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_rebuilt",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/rebuilt.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Der Wiederaufbau ist vollendet, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_army_approaching",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/army_approaching.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät, ein feindliches Heer sammelt sich an unserer Grenze!",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_war_we_declared",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/war_we_declared.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Der Krieg ist erklärt, Majestät. Die Truppen erwarten Eure Befehle.",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_treaty",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/treaty.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Der Vertrag ist unterzeichnet, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_envoy",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/envoy.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Ein Gesandter bittet um Gehör, Majestät.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_tribute_demand",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/tribute_demand.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät, ein fremder Herrscher fordert Tribut von uns!",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_caravan_arrived",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/caravan_arrived.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): calm and respectful",
+    "text": "Fremde Händler sind auf dem Weg zu unserem Handelskontor, Majestät.",
+    "recommended_length_s": 5.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_caravan_back",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/caravan_back.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Unsere Karawane ist zurück, Majestät, mit vollen Wagen.",
+    "recommended_length_s": 4.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_caravan_robbed",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/caravan_robbed.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): urgent and alarmed, but composed",
+    "text": "Majestät, unsere Karawane wurde unterwegs ausgeraubt!",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_victory",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/victory.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): warm and pleased",
+    "text": "Sieg, Majestät! Der Feind ist geschlagen.",
+    "recommended_length_s": 3.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_battle_lost",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/battle_lost.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Wir haben die Schlacht verloren, Majestät. Der Feind ist zu stark.",
+    "recommended_length_s": 5.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_battle_over",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/battle_over.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Der Kampf ist vorüber, Majestät. Keine Seite hat gesiegt.",
+    "recommended_length_s": 4.5,
+    "variations": 1
+  },
+  {
+    "id": "vo_game_over",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/game_over.ogg"
+    ],
+    "loop": false,
+    "description": "Royal advisor (mature male voice, German): grave and subdued",
+    "text": "Unser Reich ist gefallen, Majestät … Die Geschichte wird sich an uns erinnern.",
+    "recommended_length_s": 6.0,
+    "variations": 1
+  },
+  {
+    "id": "vo_citizen_yes",
+    "channel": "Voice",
+    "kind": "voice",
+    "expected_files": [
+      "voice/citizen_yes_1.ogg",
+      "voice/citizen_yes_2.ogg",
+      "voice/citizen_yes_3.ogg"
+    ],
+    "loop": false,
+    "description": "Villager acknowledgement when clicked: short and eager, one line per file (different voices welcome)",
+    "text": [
+      "Jawohl!",
+      "Sofort, Herr!",
+      "Wird gemacht!"
+    ],
+    "recommended_length_s": 1.5,
+    "variations": 3
+  }
+]

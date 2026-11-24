@@ -1,0 +1,908 @@
+// Building types (docs/game_design.md §5.1-5.5). The id is also the sprite name.
+//
+// Fields (optional ones have defaults):
+//   id, name, plural (German plural; required for buildings that shoot, texts count them),
+//   description, category (Housing | Production | Agriculture | Public | Military),
+//   size: (width, depth) in tiles, cost: (gold, materials: {resource: amount}),
+//   build_hours (construction work for one builder), workers, job: (category, tier),
+//   upkeep (gold/day), buildable (false = only reachable by upgrading), material (Wood | Stone),
+//   upgrade: (to, cost, hours) — next level; cost and hours default to the target's construction
+//   cost and build_hours; the building keeps workers, stock, buffers, recipes and orders,
+//   outdoor (work outside: weather changes the work speed, doc §8.2),
+//   role (General | Headquarters | TradeHub | WallSegment | Gate),
+//   production: (gathering, recipes: [(id, name, inputs, optional_inputs, outputs, hours)],
+//                uses_tools, buffer), housing: (capacity, tier, class, tax_per_resident,
+//   income_per_worker (household earnings per working member and day, doc §6),
+//   requires: (needs, services, goods: [[any of]])), services: [(kind, radius)],
+//   storage: (capacity_per_resource, accepts, carrier_radius), sells, territory_radius,
+//   garrison (soldiers stationed inside), defense: (ranged, range, hit_points) — shots per
+//   combat round at enemies within `range` tiles and the structure's hit points (without it:
+//   military.building_hp_per_tile per footprint tile, doc §11),
+//   placement: [MaxCount | NearWater | NearDeposit | OnWallLine].
+//
+// Which technology unlocks a building is defined ONLY in technologies.ron (UnlockBuilding);
+// buildings not unlocked by any technology are available from the start.
+// Upgrading a house costs the construction cost of the target tier (houses name no upgrade cost).
+#![enable(implicit_some)]
+[
+    // =======================================================================================
+    // 5.1 Wohngebäude
+    // =======================================================================================
+    (
+        id: "house_wood", name: "Einfaches Holzhaus", category: Housing, size: (2, 2),
+        description: "Schlichte Unterkunft für fünf Siedler.",
+        cost: (gold: 20, materials: {"wood": 12}), build_hours: 6.0,
+        upgrade: (to: "farmhouse"),
+        housing: (capacity: 5, tier: 1, class: Commoner, tax_per_resident: 10.0, income_per_worker: 30.0),
+    ),
+    (
+        id: "farmhouse", name: "Bauernhaus", category: Housing, size: (2, 2), buildable: false,
+        description: "Geräumiges Haus für Familien, die mit Nahrung, Wasser und einem Markt versorgt sind.",
+        cost: (gold: 40, materials: {"planks": 10, "loam": 6}), build_hours: 8.0,
+        upgrade: (to: "citizen_house"),
+        housing: (
+            capacity: 7, tier: 2, class: Commoner, tax_per_resident: 14.0, income_per_worker: 36.0,
+            requires: (needs: [Hunger, Thirst], services: [Market]),
+        ),
+    ),
+    (
+        id: "citizen_house", name: "Bürgerhaus", category: Housing, size: (2, 2), buildable: false,
+        material: Stone,
+        description: "Gemauertes Haus für Bürger mit Kirche, Kleidung und Keramik.",
+        cost: (gold: 80, materials: {"planks": 16, "bricks": 10}), build_hours: 10.0,
+        upgrade: (to: "townhouse"),
+        housing: (
+            capacity: 9, tier: 3, class: Commoner, tax_per_resident: 20.0, income_per_worker: 48.0,
+            requires: (
+                needs: [Hunger, Thirst], services: [Market, Religion],
+                goods: [["clothes"], ["ceramics"]],
+            ),
+        ),
+    ),
+    (
+        id: "townhouse", name: "Stadthaus", category: Housing, size: (2, 2), buildable: false,
+        material: Stone,
+        description: "Mehrstöckiges Stadthaus; verlangt Schule, Gasthaus, Möbel und Bier.",
+        cost: (gold: 150, materials: {"bricks": 20, "stone": 10, "tools": 6}), build_hours: 12.0,
+        upgrade: (to: "residence"),
+        housing: (
+            capacity: 12, tier: 4, class: Commoner, tax_per_resident: 28.0, income_per_worker: 64.0,
+            requires: (
+                needs: [Hunger, Thirst], services: [Market, Religion, Education, Entertainment],
+                goods: [["clothes"], ["ceramics"], ["furniture"], ["beer"]],
+            ),
+        ),
+    ),
+    (
+        id: "residence", name: "Wohlhabende Residenz", category: Housing, size: (3, 3), buildable: false,
+        material: Stone,
+        description: "Residenz wohlhabender Familien; verlangt Krankenhaus sowie Wein oder Schmuck.",
+        cost: (gold: 400, materials: {"bricks": 30, "stone": 20, "furniture": 12}), build_hours: 18.0,
+        upgrade: (to: "manor"),
+        housing: (
+            capacity: 10, tier: 5, class: Wealthy, tax_per_resident: 70.0, income_per_worker: 150.0,
+            requires: (
+                needs: [Hunger, Thirst], services: [Market, Religion, Education, Entertainment, Health],
+                goods: [["clothes"], ["ceramics"], ["furniture"], ["beer"], ["wine", "jewelry"]],
+            ),
+        ),
+    ),
+    (
+        id: "manor", name: "Adelssitz", category: Housing, size: (4, 4), buildable: false,
+        material: Stone,
+        description: "Prächtiger Sitz des Adels; verlangt Kunst sowie Seide oder Gewürze.",
+        cost: (gold: 1200, materials: {"stone": 60, "bricks": 30, "furniture": 20, "jewelry": 10}), build_hours: 30.0,
+        housing: (
+            capacity: 8, tier: 6, class: Noble, tax_per_resident: 200.0, income_per_worker: 400.0,
+            requires: (
+                needs: [Hunger, Thirst], services: [Market, Religion, Education, Entertainment, Health],
+                goods: [["clothes"], ["ceramics"], ["furniture"], ["beer"], ["wine", "jewelry"], ["art"], ["silk", "spices"]],
+            ),
+        ),
+    ),
+
+    // =======================================================================================
+    // 5.2 Produktion
+    // =======================================================================================
+    (
+        id: "woodcutter", name: "Holzfällerhütte", category: Production, size: (2, 2), outdoor: true,
+        description: "Fällt ausgewachsene Bäume im Umkreis von 8 Feldern.",
+        cost: (gold: 15, materials: {"wood": 8}), build_hours: 3.0,
+        workers: 2, job: (category: RawMaterials, tier: Unskilled), upkeep: 1,
+        upgrade: (to: "lumber_camp"),
+        production: (
+            gathering: Trees(radius: 8),
+            recipes: [(id: "wood", name: "Holz schlagen", outputs: {"wood": 1.0}, hours: 1.5)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "lumber_camp", name: "Holzfällerlager", category: Production, size: (2, 2), outdoor: true, buildable: false,
+        description: "Ausgebaute Holzfällerhütte mit drei Holzfällern und Sägebock: fällt Bäume im Umkreis von 10 Feldern, 50 % schneller.",
+        cost: (gold: 40, materials: {"wood": 20, "planks": 8, "tools": 2}), build_hours: 5.0,
+        workers: 3, job: (category: RawMaterials, tier: Unskilled), upkeep: 2,
+        production: (
+            gathering: Trees(radius: 10),
+            recipes: [(id: "wood", name: "Holz schlagen", outputs: {"wood": 1.0}, hours: 1.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "forester", name: "Försterhaus", category: Production, size: (2, 2), outdoor: true,
+        description: "Pflanzt Setzlinge im Umkreis von 7 Feldern.",
+        cost: (gold: 15, materials: {"wood": 6}), build_hours: 3.0,
+        workers: 1, job: (category: RawMaterials, tier: Unskilled), upkeep: 1,
+        production: (
+            gathering: PlantTrees(radius: 7),
+            recipes: [(id: "plant", name: "Setzling pflanzen", hours: 2.0)],
+        ),
+    ),
+    (
+        id: "sawmill", name: "Sägewerk", category: Production, size: (2, 3),
+        description: "Sägt Holz zu Brettern.",
+        cost: (gold: 40, materials: {"wood": 15, "stone": 6}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 2,
+        upgrade: (to: "large_sawmill"),
+        production: (
+            recipes: [(id: "planks", name: "Bretter sägen", inputs: {"wood": 2.0}, outputs: {"planks": 3.0}, hours: 2.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_sawmill", name: "Großes Sägewerk", category: Production, size: (2, 3), buildable: false,
+        description: "Ausgebautes Sägewerk mit drei Sägern und doppeltem Lager: sägt 60 % mehr Bretter.",
+        cost: (gold: 80, materials: {"planks": 20, "stone": 12, "tools": 2}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 3,
+        production: (
+            recipes: [(id: "planks", name: "Bretter sägen", inputs: {"wood": 2.0}, outputs: {"planks": 3.0}, hours: 1.25)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "quarry", name: "Steinbruch", category: Production, size: (3, 3), outdoor: true,
+        description: "Bricht Stein aus Vorkommen im Umkreis von 6 Feldern.",
+        cost: (gold: 30, materials: {"wood": 12}), build_hours: 5.0,
+        workers: 3, job: (category: RawMaterials, tier: Unskilled), upkeep: 2,
+        upgrade: (to: "large_quarry"),
+        production: (
+            gathering: Deposit(kind: Stone, radius: 6),
+            recipes: [(id: "stone", name: "Stein brechen", outputs: {"stone": 1.0}, hours: 2.0)],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Stone, max_distance: 6)],
+    ),
+    (
+        id: "large_quarry", name: "Großer Steinbruch", category: Production, size: (3, 3), outdoor: true, buildable: false,
+        description: "Ausgebauter Steinbruch mit Kran und vier Steinbrechern: bricht Stein im Umkreis von 8 Feldern, 50 % schneller.",
+        cost: (gold: 90, materials: {"wood": 20, "planks": 15, "tools": 4}), build_hours: 8.0,
+        workers: 4, job: (category: RawMaterials, tier: Unskilled), upkeep: 3,
+        production: (
+            gathering: Deposit(kind: Stone, radius: 8),
+            recipes: [(id: "stone", name: "Stein brechen", outputs: {"stone": 1.0}, hours: 1.33)],
+            uses_tools: true, buffer: 16,
+        ),
+        placement: [NearDeposit(kind: Stone, max_distance: 6)],
+    ),
+    (
+        id: "clay_pit", name: "Lehmgrube", category: Production, size: (2, 2), outdoor: true,
+        description: "Gräbt Lehm oder Ton aus Vorkommen im Umkreis von 5 Feldern.",
+        cost: (gold: 20, materials: {"wood": 10}), build_hours: 4.0,
+        workers: 2, job: (category: RawMaterials, tier: Unskilled), upkeep: 1,
+        production: (
+            gathering: Deposit(kind: Clay, radius: 5),
+            recipes: [
+                (id: "loam", name: "Lehm stechen", outputs: {"loam": 2.0}, hours: 2.0),
+                (id: "clay", name: "Ton graben", outputs: {"clay": 1.0}, hours: 2.0),
+            ],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Clay, max_distance: 5)],
+    ),
+    (
+        id: "sand_pit", name: "Sandgrube", category: Production, size: (2, 2), outdoor: true,
+        description: "Gewinnt Sand aus Vorkommen oder vom Strand im Umkreis von 5 Feldern.",
+        cost: (gold: 15, materials: {"wood": 8}), build_hours: 3.0,
+        workers: 1, job: (category: RawMaterials, tier: Unskilled), upkeep: 1,
+        production: (
+            gathering: Deposit(kind: Sand, radius: 5, or_terrain: Sand),
+            recipes: [(id: "sand", name: "Sand schaufeln", outputs: {"sand": 2.0}, hours: 2.0)],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Sand, max_distance: 5, or_terrain: Sand)],
+    ),
+    (
+        id: "iron_mine", name: "Eisenmine", category: Production, size: (2, 2),
+        description: "Fördert Eisenerz aus einem Vorkommen unter oder neben der Mine.",
+        cost: (gold: 80, materials: {"planks": 15, "stone": 10, "tools": 4}), build_hours: 10.0,
+        workers: 3, job: (category: RawMaterials, tier: Unskilled), upkeep: 4, material: Stone,
+        production: (
+            gathering: Deposit(kind: Iron, radius: 1),
+            recipes: [(id: "iron_ore", name: "Eisenerz fördern", outputs: {"iron_ore": 1.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Iron, max_distance: 1)],
+    ),
+    (
+        id: "coal_mine", name: "Kohlemine", category: Production, size: (2, 2),
+        description: "Fördert Kohle aus einem Vorkommen unter oder neben der Mine.",
+        cost: (gold: 70, materials: {"planks": 15, "stone": 10, "tools": 3}), build_hours: 10.0,
+        workers: 3, job: (category: RawMaterials, tier: Unskilled), upkeep: 3, material: Stone,
+        production: (
+            gathering: Deposit(kind: Coal, radius: 1),
+            recipes: [(id: "coal", name: "Kohle fördern", outputs: {"coal": 1.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Coal, max_distance: 1)],
+    ),
+    (
+        id: "charcoal_kiln", name: "Köhlerei", category: Production, size: (2, 2),
+        description: "Verkohlt Holz zu Holzkohle.",
+        cost: (gold: 25, materials: {"wood": 8, "stone": 8}), build_hours: 4.0,
+        workers: 1, job: (category: RawMaterials, tier: Unskilled), upkeep: 1,
+        production: (
+            recipes: [(id: "coal", name: "Holz verkohlen", inputs: {"wood": 3.0}, outputs: {"coal": 1.0}, hours: 4.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "gold_mine", name: "Goldmine", category: Production, size: (2, 2),
+        description: "Fördert Golderz aus einem Vorkommen unter oder neben der Mine.",
+        cost: (gold: 200, materials: {"planks": 20, "stone": 20, "tools": 8}), build_hours: 16.0,
+        workers: 3, job: (category: RawMaterials, tier: Unskilled), upkeep: 8, material: Stone,
+        production: (
+            gathering: Deposit(kind: Gold, radius: 1),
+            recipes: [(id: "gold_ore", name: "Golderz fördern", outputs: {"gold_ore": 1.0}, hours: 6.0)],
+            uses_tools: true,
+        ),
+        placement: [NearDeposit(kind: Gold, max_distance: 1)],
+    ),
+    (
+        id: "smelter", name: "Eisenschmelze", category: Production, size: (2, 2),
+        description: "Schmilzt Eisenerz mit Kohle zu Eisenbarren.",
+        cost: (gold: 120, materials: {"stone": 30, "planks": 10}), build_hours: 10.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 5, material: Stone,
+        upgrade: (to: "blast_furnace"),
+        production: (
+            recipes: [(id: "iron_bars", name: "Eisen schmelzen", inputs: {"iron_ore": 2.0, "coal": 1.0},
+                outputs: {"iron_bars": 1.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "blast_furnace", name: "Hochofen", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Eisenschmelze mit Hochofen und Blasebalg: schmilzt 50 % mehr Eisen.",
+        cost: (gold: 240, materials: {"stone": 40, "bricks": 20, "iron_bars": 6}), build_hours: 14.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 7, material: Stone,
+        production: (
+            recipes: [(id: "iron_bars", name: "Eisen schmelzen", inputs: {"iron_ore": 2.0, "coal": 1.0},
+                outputs: {"iron_bars": 1.0}, hours: 2.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "smithy", name: "Schmiede", category: Production, size: (2, 2),
+        description: "Schmiedet Werkzeuge aus Eisenbarren und Holz.",
+        cost: (gold: 100, materials: {"planks": 15, "stone": 20}), build_hours: 8.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 4, material: Stone,
+        upgrade: (to: "master_smithy"),
+        production: (
+            recipes: [(id: "tools", name: "Werkzeuge schmieden", inputs: {"iron_bars": 1.0, "wood": 1.0},
+                outputs: {"tools": 2.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "master_smithy", name: "Meisterschmiede", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Schmiede mit zwei Essen und drei Schmieden: schmiedet 50 % mehr Werkzeuge.",
+        cost: (gold: 150, materials: {"bricks": 15, "planks": 10, "iron_bars": 4}), build_hours: 10.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 6, material: Stone,
+        production: (
+            recipes: [(id: "tools", name: "Werkzeuge schmieden", inputs: {"iron_bars": 1.0, "wood": 1.0},
+                outputs: {"tools": 2.0}, hours: 2.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "weaponsmith", name: "Waffenschmiede", category: Production, size: (2, 2),
+        description: "Fertigt Waffen aus Eisenbarren, Holz und Kohle sowie Rüstungen aus Eisenbarren und Leder.",
+        cost: (gold: 150, materials: {"planks": 20, "stone": 25, "iron_bars": 10}), build_hours: 10.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 6, material: Stone,
+        production: (
+            recipes: [
+                (id: "weapons", name: "Waffen schmieden", inputs: {"iron_bars": 2.0, "wood": 1.0, "coal": 1.0},
+                    outputs: {"weapons": 1.0}, hours: 4.0),
+                (id: "armor", name: "Rüstungen schmieden", inputs: {"iron_bars": 1.0, "leather": 2.0, "coal": 1.0},
+                    outputs: {"armor": 1.0}, hours: 5.0),
+            ],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "brickworks", name: "Ziegelei", category: Production, size: (2, 3),
+        description: "Brennt Ziegel aus Ton, Sand und Kohle.",
+        cost: (gold: 80, materials: {"planks": 15, "stone": 20}), build_hours: 8.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 3, material: Stone,
+        upgrade: (to: "large_brickworks"),
+        production: (
+            recipes: [(id: "bricks", name: "Ziegel brennen", inputs: {"clay": 2.0, "sand": 1.0, "coal": 1.0},
+                outputs: {"bricks": 4.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_brickworks", name: "Große Ziegelei", category: Production, size: (2, 3), buildable: false,
+        description: "Ausgebaute Ziegelei mit Ringofen und drei Zieglern: brennt 50 % mehr Ziegel.",
+        cost: (gold: 160, materials: {"stone": 30, "planks": 15, "bricks": 10}), build_hours: 11.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 4, material: Stone,
+        production: (
+            recipes: [(id: "bricks", name: "Ziegel brennen", inputs: {"clay": 2.0, "sand": 1.0, "coal": 1.0},
+                outputs: {"bricks": 4.0}, hours: 2.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "pottery", name: "Töpferei", category: Production, size: (2, 2),
+        description: "Töpfert Keramik aus Ton.",
+        cost: (gold: 50, materials: {"planks": 12, "stone": 10}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 2,
+        upgrade: (to: "large_pottery"),
+        production: (
+            recipes: [(id: "ceramics", name: "Keramik brennen", inputs: {"clay": 2.0, "wood": 1.0},
+                outputs: {"ceramics": 2.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_pottery", name: "Große Töpferei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Töpferei mit zweitem Brennofen und drei Töpfern: brennt 50 % mehr Keramik.",
+        cost: (gold: 100, materials: {"planks": 15, "bricks": 15}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 3,
+        production: (
+            recipes: [(id: "ceramics", name: "Keramik brennen", inputs: {"clay": 2.0, "wood": 1.0},
+                outputs: {"ceramics": 2.0}, hours: 2.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "weaver", name: "Weberei", category: Production, size: (2, 2),
+        description: "Webt Stoff aus Wolle.",
+        cost: (gold: 50, materials: {"planks": 15}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 2,
+        upgrade: (to: "large_weaver"),
+        production: (
+            recipes: [(id: "cloth", name: "Stoff weben", inputs: {"wool": 2.0}, outputs: {"cloth": 1.0}, hours: 2.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_weaver", name: "Große Weberei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Weberei mit drei Webstühlen: webt 50 % mehr Stoff.",
+        cost: (gold: 100, materials: {"planks": 20, "bricks": 8}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 3,
+        production: (
+            recipes: [(id: "cloth", name: "Stoff weben", inputs: {"wool": 2.0}, outputs: {"cloth": 1.0}, hours: 1.33)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "tailor", name: "Schneiderei", category: Production, size: (2, 2),
+        description: "Näht Kleidung aus Stoff und Leder.",
+        cost: (gold: 70, materials: {"planks": 15, "bricks": 6}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 3,
+        upgrade: (to: "large_tailor"),
+        production: (
+            recipes: [
+                (id: "clothes_leather", name: "Kleidung mit Leder", inputs: {"cloth": 1.0, "leather": 1.0},
+                    outputs: {"clothes": 1.0}, hours: 3.0),
+                (id: "clothes_cloth", name: "Kleidung aus Stoff", inputs: {"cloth": 2.0},
+                    outputs: {"clothes": 1.0}, hours: 3.0),
+            ],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_tailor", name: "Große Schneiderei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Schneiderei mit drei Schneidern: näht 50 % mehr Kleidung.",
+        cost: (gold: 140, materials: {"planks": 20, "bricks": 12}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 4,
+        production: (
+            recipes: [
+                (id: "clothes_leather", name: "Kleidung mit Leder", inputs: {"cloth": 1.0, "leather": 1.0},
+                    outputs: {"clothes": 1.0}, hours: 2.0),
+                (id: "clothes_cloth", name: "Kleidung aus Stoff", inputs: {"cloth": 2.0},
+                    outputs: {"clothes": 1.0}, hours: 2.0),
+            ],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "tannery", name: "Gerberei", category: Production, size: (2, 2),
+        description: "Gerbt Häute zu Leder.",
+        cost: (gold: 50, materials: {"planks": 12, "stone": 8}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 2,
+        upgrade: (to: "large_tannery"),
+        production: (
+            recipes: [(id: "leather", name: "Leder gerben", inputs: {"hides": 2.0}, outputs: {"leather": 1.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_tannery", name: "Große Gerberei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Gerberei mit mehr Gerbgruben und drei Gerbern: gerbt 50 % mehr Leder.",
+        cost: (gold: 100, materials: {"planks": 15, "stone": 15}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 3,
+        production: (
+            recipes: [(id: "leather", name: "Leder gerben", inputs: {"hides": 2.0}, outputs: {"leather": 1.0}, hours: 2.0)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "carpenter", name: "Tischlerei", category: Production, size: (2, 2),
+        description: "Fertigt Möbel aus Brettern; verbraucht dabei etwas Werkzeug.",
+        cost: (gold: 70, materials: {"planks": 20, "tools": 6}), build_hours: 6.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 3,
+        upgrade: (to: "large_carpenter"),
+        production: (
+            recipes: [(id: "furniture", name: "Möbel tischlern", inputs: {"planks": 3.0, "tools": 0.25},
+                outputs: {"furniture": 1.0}, hours: 4.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_carpenter", name: "Große Tischlerei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Tischlerei mit Werkhalle und drei Tischlern: fertigt 50 % mehr Möbel.",
+        cost: (gold: 140, materials: {"planks": 25, "bricks": 8, "tools": 6}), build_hours: 8.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 4,
+        production: (
+            recipes: [(id: "furniture", name: "Möbel tischlern", inputs: {"planks": 3.0, "tools": 0.25},
+                outputs: {"furniture": 1.0}, hours: 2.67)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "mill", name: "Mühle", category: Production, size: (2, 2),
+        description: "Mahlt Weizen zu Mehl.",
+        cost: (gold: 40, materials: {"planks": 15, "stone": 10}), build_hours: 6.0,
+        workers: 1, job: (category: Food, tier: Unskilled), upkeep: 2,
+        upgrade: (to: "large_mill"),
+        production: (
+            recipes: [(id: "flour", name: "Mehl mahlen", inputs: {"wheat": 2.0}, outputs: {"flour": 2.0}, hours: 2.0)],
+        ),
+    ),
+    (
+        id: "large_mill", name: "Große Mühle", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Mühle mit zwei Mahlgängen und zwei Müllern: mahlt 65 % mehr Mehl.",
+        cost: (gold: 70, materials: {"planks": 20, "stone": 10}), build_hours: 8.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 3,
+        production: (
+            recipes: [(id: "flour", name: "Mehl mahlen", inputs: {"wheat": 2.0}, outputs: {"flour": 2.0}, hours: 1.2)],
+            buffer: 16,
+        ),
+    ),
+    (
+        id: "bakery", name: "Bäckerei", category: Production, size: (2, 2),
+        description: "Backt Brot aus Mehl.",
+        cost: (gold: 50, materials: {"planks": 12, "stone": 12}), build_hours: 6.0,
+        workers: 2, job: (category: Food, tier: Skilled), upkeep: 2,
+        upgrade: (to: "large_bakery"),
+        production: (
+            recipes: [(id: "bread", name: "Brot backen", inputs: {"flour": 2.0, "wood": 1.0}, outputs: {"bread": 4.0}, hours: 2.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_bakery", name: "Großbäckerei", category: Production, size: (2, 2), buildable: false,
+        description: "Ausgebaute Bäckerei mit zweitem Ofen und drei Bäckern: backt 50 % mehr Brot.",
+        cost: (gold: 80, materials: {"bricks": 12, "planks": 10}), build_hours: 8.0,
+        workers: 3, job: (category: Food, tier: Skilled), upkeep: 3,
+        production: (
+            recipes: [(id: "bread", name: "Brot backen", inputs: {"flour": 2.0, "wood": 1.0}, outputs: {"bread": 4.0}, hours: 1.33)],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "brewery", name: "Brauerei", category: Production, size: (2, 3),
+        description: "Braut Bier aus Gerste; Honig verbessert die Ausbeute.",
+        cost: (gold: 80, materials: {"planks": 20, "stone": 15}), build_hours: 8.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 3,
+        upgrade: (to: "large_brewery"),
+        production: (
+            recipes: [(
+                id: "beer", name: "Bier brauen", inputs: {"grain": 3.0},
+                optional_inputs: [(resource: "honey", amount: 0.5, output_bonus_percent: 25)],
+                outputs: {"beer": 2.0}, hours: 4.0,
+            )],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "large_brewery", name: "Große Brauerei", category: Production, size: (2, 3), buildable: false,
+        description: "Ausgebaute Brauerei mit zweitem Sudhaus und drei Brauern: braut 50 % mehr Bier; Honig verbessert die Ausbeute.",
+        cost: (gold: 160, materials: {"planks": 25, "bricks": 20}), build_hours: 11.0,
+        workers: 3, job: (category: Processing, tier: Skilled), upkeep: 4,
+        production: (
+            recipes: [(
+                id: "beer", name: "Bier brauen", inputs: {"grain": 3.0},
+                optional_inputs: [(resource: "honey", amount: 0.5, output_bonus_percent: 25)],
+                outputs: {"beer": 2.0}, hours: 2.67,
+            )],
+            uses_tools: true, buffer: 16,
+        ),
+    ),
+    (
+        id: "cheese_dairy", name: "Käserei", category: Production, size: (2, 2),
+        description: "Macht Käse aus Milch.",
+        cost: (gold: 60, materials: {"planks": 15, "stone": 10}), build_hours: 6.0,
+        workers: 1, job: (category: Food, tier: Skilled), upkeep: 2,
+        production: (
+            recipes: [(id: "cheese", name: "Käse reifen", inputs: {"milk": 3.0}, outputs: {"cheese": 1.0}, hours: 3.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "winery", name: "Weinkellerei", category: Production, size: (2, 3),
+        description: "Keltert Wein aus Obst.",
+        cost: (gold: 150, materials: {"planks": 20, "bricks": 20}), build_hours: 10.0,
+        workers: 2, job: (category: Processing, tier: Skilled), upkeep: 5, material: Stone,
+        production: (
+            recipes: [(id: "wine", name: "Wein keltern", inputs: {"fruit": 4.0}, outputs: {"wine": 1.0}, hours: 6.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "jeweler", name: "Goldschmied", category: Production, size: (2, 2),
+        description: "Fertigt Schmuck aus Golderz; braucht gebildete Arbeiter.",
+        cost: (gold: 250, materials: {"bricks": 20, "stone": 10, "tools": 5}), build_hours: 12.0,
+        workers: 1, job: (category: Processing, tier: Educated), upkeep: 8, material: Stone,
+        production: (
+            recipes: [(id: "jewelry", name: "Schmuck fertigen", inputs: {"gold_ore": 1.0, "coal": 1.0},
+                outputs: {"jewelry": 1.0}, hours: 6.0)],
+            uses_tools: true,
+        ),
+    ),
+    (
+        id: "artisan", name: "Kunsthandwerker", category: Production, size: (2, 2),
+        description: "Schafft Kunstgegenstände; braucht gebildete Arbeiter.",
+        cost: (gold: 300, materials: {"bricks": 20, "planks": 15}), build_hours: 12.0,
+        workers: 1, job: (category: Processing, tier: Educated), upkeep: 10, material: Stone,
+        production: (
+            recipes: [(id: "art", name: "Kunst schaffen", inputs: {"ceramics": 1.0, "cloth": 1.0, "jewelry": 1.0},
+                outputs: {"art": 1.0}, hours: 8.0)],
+            uses_tools: true,
+        ),
+    ),
+
+    // =======================================================================================
+    // 5.3 Landwirtschaft
+    // =======================================================================================
+    (
+        id: "wheat_farm", name: "Weizenfarm", category: Agriculture, size: (3, 3), outdoor: true,
+        description: "Bewirtschaftet bis zu 24 Felder mit Weizen oder Gerste.",
+        cost: (gold: 40, materials: {"wood": 15, "planks": 5}), build_hours: 6.0,
+        workers: 3, job: (category: Food, tier: Unskilled), upkeep: 2,
+        production: (gathering: Fields(crops: ["wheat", "barley"], max_tiles: 24, radius: 5)),
+    ),
+    (
+        id: "vegetable_farm", name: "Gemüsefarm", category: Agriculture, size: (3, 3), outdoor: true,
+        description: "Bewirtschaftet bis zu 16 Gemüsefelder; zwei Ernten im Jahr möglich.",
+        cost: (gold: 30, materials: {"wood": 15}), build_hours: 5.0,
+        workers: 3, job: (category: Food, tier: Unskilled), upkeep: 1,
+        production: (gathering: Fields(crops: ["vegetables"], max_tiles: 16, radius: 4)),
+    ),
+    (
+        id: "orchard", name: "Obstgarten", category: Agriculture, size: (3, 3), outdoor: true,
+        description: "Pflegt bis zu 16 Felder mit Obstbäumen; Ernte im Herbst.",
+        cost: (gold: 60, materials: {"wood": 20, "planks": 10}), build_hours: 8.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 2,
+        production: (gathering: Fields(crops: ["fruit"], max_tiles: 16, radius: 4)),
+    ),
+    (
+        id: "cattle_farm", name: "Viehzucht", category: Agriculture, size: (3, 3), outdoor: true,
+        description: "Hält Rinder auf 16 Weidefeldern: Fleisch, Häute und Milch. Getreide als Futter steigert den Ertrag.",
+        cost: (gold: 80, materials: {"wood": 25, "planks": 15}), build_hours: 8.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 3,
+        production: (
+            gathering: Pasture(tiles: 16, radius: 4),
+            recipes: [(
+                id: "cattle", name: "Rinder halten",
+                // 1 grain per day as optional feed (4 cycles of 6 h) gives +30 %.
+                optional_inputs: [(resource: "grain", amount: 0.25, output_bonus_percent: 30)],
+                outputs: {"meat": 1.0, "hides": 1.0, "milk": 2.0}, hours: 6.0,
+            )],
+        ),
+    ),
+    (
+        id: "chicken_farm", name: "Hühnerhof", category: Agriculture, size: (2, 2), outdoor: true,
+        description: "Kleiner Hof, der schnell Fleisch liefert.",
+        cost: (gold: 25, materials: {"wood": 12}), build_hours: 4.0,
+        workers: 1, job: (category: Food, tier: Unskilled), upkeep: 1,
+        production: (recipes: [(id: "meat", name: "Hühner halten", outputs: {"meat": 1.0}, hours: 2.0)]),
+    ),
+    (
+        id: "sheep_farm", name: "Schafzucht", category: Agriculture, size: (3, 3), outdoor: true,
+        description: "Hält Schafe auf 16 Weidefeldern: Wolle und gelegentlich Fleisch.",
+        cost: (gold: 60, materials: {"wood": 20, "planks": 10}), build_hours: 7.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 2,
+        production: (
+            gathering: Pasture(tiles: 16, radius: 4),
+            recipes: [(id: "wool", name: "Schafe scheren", outputs: {"wool": 2.0, "meat": 0.25}, hours: 4.0)],
+        ),
+    ),
+    (
+        id: "fishery", name: "Fischerei", category: Agriculture, size: (2, 2), outdoor: true,
+        description: "Fischt in Fischgründen im Umkreis von 8 Feldern. Muss am Wasser stehen.",
+        cost: (gold: 30, materials: {"wood": 15}), build_hours: 4.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 1,
+        upgrade: (to: "large_fishery"),
+        production: (
+            gathering: Deposit(kind: Fish, radius: 8),
+            recipes: [(id: "fish", name: "Fischen", outputs: {"fish": 2.0}, hours: 3.0)],
+        ),
+        placement: [NearWater(max_distance: 1), NearDeposit(kind: Fish, max_distance: 8)],
+    ),
+    (
+        id: "large_fishery", name: "Große Fischerei", category: Agriculture, size: (2, 2), outdoor: true, buildable: false,
+        description: "Ausgebaute Fischerei mit Steg, Booten und drei Fischern: fischt im Umkreis von 10 Feldern, 50 % schneller.",
+        cost: (gold: 70, materials: {"wood": 20, "planks": 15}), build_hours: 6.0,
+        workers: 3, job: (category: Food, tier: Unskilled), upkeep: 2,
+        production: (
+            gathering: Deposit(kind: Fish, radius: 10),
+            recipes: [(id: "fish", name: "Fischen", outputs: {"fish": 2.0}, hours: 2.0)],
+            buffer: 16,
+        ),
+        placement: [NearWater(max_distance: 1), NearDeposit(kind: Fish, max_distance: 8)],
+    ),
+    (
+        id: "apiary", name: "Imkerei", category: Agriculture, size: (2, 2), outdoor: true,
+        description: "Gewinnt Honig; Wiesen und Obstgärten in der Nähe steigern den Ertrag.",
+        cost: (gold: 30, materials: {"wood": 10, "planks": 5}), build_hours: 4.0,
+        workers: 1, job: (category: Food, tier: Unskilled), upkeep: 1,
+        upgrade: (to: "large_apiary"),
+        production: (
+            gathering: Bees(radius: 6, max_bonus_percent: 60),
+            recipes: [(id: "honey", name: "Honig ernten", outputs: {"honey": 1.0}, hours: 4.0)],
+        ),
+    ),
+    (
+        id: "large_apiary", name: "Große Imkerei", category: Agriculture, size: (2, 2), outdoor: true, buildable: false,
+        description: "Ausgebaute Imkerei mit Bienenhaus und zwei Imkern: erntet 50 % mehr Honig; Wiesen und Obstgärten im Umkreis von 8 Feldern steigern den Ertrag.",
+        cost: (gold: 60, materials: {"wood": 15, "planks": 10}), build_hours: 6.0,
+        workers: 2, job: (category: Food, tier: Unskilled), upkeep: 2,
+        production: (
+            gathering: Bees(radius: 8, max_bonus_percent: 60),
+            recipes: [(id: "honey", name: "Honig ernten", outputs: {"honey": 1.0}, hours: 2.67)],
+            buffer: 16,
+        ),
+    ),
+
+    // =======================================================================================
+    // 5.4 Öffentliche Gebäude
+    // =======================================================================================
+    (
+        id: "town_hall", name: "Rathaus", category: Public, size: (4, 4), role: Headquarters, material: Stone,
+        description: "Dorfzentrum: Verwaltung, Steuern und erstes Lager. Beansprucht Land im Umkreis von 20 Feldern.",
+        cost: (gold: 300, materials: {"wood": 60, "stone": 40}), build_hours: 24.0,
+        workers: 2, job: (category: Services, tier: Skilled),
+        services: [(kind: Administration, radius: 20)],
+        storage: (capacity_per_resource: 200, accepts: All, carrier_radius: 20),
+        territory_radius: 20,
+        garrison: 4,
+        defense: (hit_points: 1200),
+        placement: [MaxCount(1)],
+        // The castle is cheaper as an extension of the town hall than built anew.
+        upgrade: (to: "castle", cost: (gold: 1500, materials: {"stone": 120, "planks": 30, "iron_bars": 20}), hours: 48.0),
+    ),
+    (
+        id: "market", name: "Marktplatz", category: Public, size: (4, 4),
+        description: "Verteilt Nahrung und Waren an alle Haushalte im Umkreis von 18 Feldern; Handelsplatz.",
+        cost: (gold: 60, materials: {"wood": 25, "stone": 10}), build_hours: 8.0,
+        workers: 3, job: (category: Services, tier: Unskilled), upkeep: 3,
+        upgrade: (to: "grand_market"),
+        services: [(kind: Market, radius: 18)],
+    ),
+    (
+        id: "grand_market", name: "Großer Markt", category: Public, size: (4, 4), buildable: false,
+        description: "Ausgebauter Markt mit Markthalle und mehr Ständen: versorgt alle Haushalte im Umkreis von 26 Feldern.",
+        cost: (gold: 160, materials: {"stone": 30, "planks": 20}), build_hours: 12.0,
+        workers: 4, job: (category: Services, tier: Unskilled), upkeep: 5,
+        services: [(kind: Market, radius: 26)],
+    ),
+    (
+        id: "church", name: "Kirche", category: Public, size: (3, 4), material: Stone,
+        description: "Erfüllt den Glauben der Bewohner im Umkreis von 20 Feldern.",
+        cost: (gold: 200, materials: {"stone": 30, "planks": 20}), build_hours: 16.0,
+        workers: 2, job: (category: Services, tier: Skilled), upkeep: 4,
+        upgrade: (to: "cathedral"),
+        services: [(kind: Religion, radius: 20)],
+    ),
+    (
+        id: "cathedral", name: "Dom", category: Public, size: (3, 4), material: Stone, buildable: false,
+        description: "Ausgebaute Kirche mit Doppelturm: erfüllt den Glauben der Bewohner im Umkreis von 30 Feldern.",
+        cost: (gold: 500, materials: {"stone": 80, "bricks": 30, "planks": 20}), build_hours: 30.0,
+        workers: 3, job: (category: Services, tier: Skilled), upkeep: 7,
+        services: [(kind: Religion, radius: 30)],
+    ),
+    (
+        id: "school", name: "Schule", category: Public, size: (3, 3), material: Stone,
+        description: "Bildet Kinder im Umkreis von 16 Feldern aus und erzeugt Forschungspunkte.",
+        cost: (gold: 150, materials: {"planks": 20, "stone": 15}), build_hours: 12.0,
+        workers: 2, job: (category: Services, tier: Educated), upkeep: 5,
+        upgrade: (to: "academy"),
+        services: [(kind: Education, radius: 16)],
+        // doc §9: the two scholars research 2 points per hour at full staff.
+        research_points_per_hour: 2.0,
+    ),
+    (
+        id: "academy", name: "Akademie", category: Public, size: (3, 3), material: Stone, buildable: false,
+        description: "Ausgebaute Schule mit Bibliothek: bildet Kinder im Umkreis von 22 Feldern aus; drei Gelehrte erzeugen doppelt so viele Forschungspunkte.",
+        cost: (gold: 350, materials: {"bricks": 30, "stone": 20, "planks": 15}), build_hours: 18.0,
+        workers: 3, job: (category: Services, tier: Educated), upkeep: 8,
+        services: [(kind: Education, radius: 22)],
+        research_points_per_hour: 4.0,
+    ),
+    (
+        id: "hospital", name: "Krankenhaus", category: Public, size: (3, 3), material: Stone,
+        description: "Versorgt Kranke im Umkreis von 18 Feldern und schützt vor Seuchen.",
+        cost: (gold: 250, materials: {"bricks": 25, "planks": 20}), build_hours: 16.0,
+        workers: 3, job: (category: Services, tier: Educated), upkeep: 8,
+        upgrade: (to: "infirmary"),
+        services: [(kind: Health, radius: 18)],
+    ),
+    (
+        id: "infirmary", name: "Spital", category: Public, size: (3, 3), material: Stone, buildable: false,
+        description: "Ausgebautes Krankenhaus mit Krankensaal und vier Heilern: versorgt Kranke im Umkreis von 26 Feldern.",
+        cost: (gold: 400, materials: {"bricks": 35, "stone": 20, "planks": 20}), build_hours: 20.0,
+        workers: 4, job: (category: Services, tier: Educated), upkeep: 11,
+        services: [(kind: Health, radius: 26)],
+    ),
+    (
+        id: "well", name: "Brunnen", category: Public, size: (1, 1), material: Stone,
+        description: "Liefert Wasser und Löschwasser im Umkreis von 8 Feldern.",
+        cost: (gold: 10, materials: {"stone": 5}), build_hours: 1.0,
+        services: [(kind: Water, radius: 8), (kind: FireProtection, radius: 8)],
+    ),
+    (
+        id: "tavern", name: "Gasthaus", category: Public, size: (3, 3),
+        description: "Unterhaltung und Bier für die Bewohner im Umkreis von 16 Feldern.",
+        cost: (gold: 120, materials: {"planks": 25, "stone": 15}), build_hours: 10.0,
+        workers: 2, job: (category: Services, tier: Unskilled), upkeep: 3,
+        upgrade: (to: "inn"),
+        services: [(kind: Entertainment, radius: 16)],
+        sells: ["beer"],
+    ),
+    (
+        id: "inn", name: "Gasthof", category: Public, size: (3, 3), buildable: false,
+        description: "Ausgebautes Gasthaus mit Saal und Gästezimmern: Unterhaltung und Bier im Umkreis von 22 Feldern.",
+        cost: (gold: 200, materials: {"planks": 30, "bricks": 15}), build_hours: 12.0,
+        workers: 3, job: (category: Services, tier: Unskilled), upkeep: 5,
+        services: [(kind: Entertainment, radius: 22)],
+        sells: ["beer"],
+    ),
+    (
+        id: "warehouse", name: "Lagerhaus", category: Public, size: (3, 3),
+        description: "Lagert 400 Einheiten je Ressource; Basis der Träger im Umkreis von 24 Feldern.",
+        cost: (gold: 80, materials: {"wood": 30, "stone": 15}), build_hours: 10.0,
+        workers: 3, job: (category: Services, tier: Unskilled), upkeep: 3,
+        storage: (capacity_per_resource: 400, accepts: All, carrier_radius: 24),
+    ),
+    (
+        id: "storehouse", name: "Vorratsspeicher", category: Public, size: (2, 2),
+        description: "Lagert 150 Einheiten je Nahrungsmittel; Träger im Umkreis von 14 Feldern.",
+        cost: (gold: 30, materials: {"wood": 15, "stone": 5}), build_hours: 5.0,
+        workers: 1, job: (category: Services, tier: Unskilled), upkeep: 1,
+        storage: (capacity_per_resource: 150, accepts: Only([Food]), carrier_radius: 14),
+        upgrade: (to: "warehouse", cost: (gold: 50, materials: {"wood": 15, "stone": 10}), hours: 6.0),
+    ),
+    (
+        id: "trading_post", name: "Handelskontor", category: Public, size: (3, 3), role: TradeHub,
+        description: "Ermöglicht Fernhandel mit Karawanen zu fremden Königreichen.",
+        cost: (gold: 150, materials: {"planks": 25, "stone": 15}), build_hours: 12.0,
+        workers: 2, job: (category: Services, tier: Skilled), upkeep: 5,
+        storage: (capacity_per_resource: 100, accepts: All, carrier_radius: 12),
+    ),
+
+    // =======================================================================================
+    // 5.5 Militär
+    // =======================================================================================
+    (
+        id: "barracks", name: "Kaserne", category: Military, size: (3, 3), material: Stone,
+        description: "Rekrutiert und bildet Infanterie aus; sorgt für Sicherheit im Umkreis von 14 Feldern.",
+        cost: (gold: 150, materials: {"stone": 25, "planks": 15}), build_hours: 14.0,
+        workers: 2, job: (category: Military, tier: Skilled), upkeep: 4,
+        upgrade: (to: "garrison"),
+        services: [(kind: Safety, radius: 14)],
+        garrison: 10,
+        defense: (hit_points: 600),
+    ),
+    (
+        id: "garrison", name: "Garnison", category: Military, size: (3, 3), material: Stone, buildable: false,
+        description: "Ausgebaute Kaserne mit Wehrmauer: bildet weiter Infanterie aus, beherbergt 20 Soldaten und sorgt für Sicherheit im Umkreis von 18 Feldern.",
+        cost: (gold: 300, materials: {"stone": 50, "planks": 20, "iron_bars": 6}), build_hours: 18.0,
+        workers: 3, job: (category: Military, tier: Skilled), upkeep: 6,
+        services: [(kind: Safety, radius: 18)],
+        garrison: 20,
+        defense: (hit_points: 1200),
+    ),
+    (
+        id: "watchtower", name: "Wachturm", plural: "Wachtürme", category: Military, size: (1, 1), material: Stone,
+        description: "Sicht und Sicherheit im Umkreis von 10 Feldern; Platz für einen Bogenschützen. Erweitert das Gebiet um 8 Felder.",
+        cost: (gold: 40, materials: {"stone": 10, "planks": 6}), build_hours: 4.0,
+        upkeep: 2,
+        services: [(kind: Safety, radius: 10)],
+        territory_radius: 8,
+        garrison: 1,
+        defense: (ranged: 5, range: 8, hit_points: 250),
+        upgrade: (to: "stone_tower"),
+    ),
+    (
+        id: "stone_tower", name: "Wehrturm", plural: "Wehrtürme", category: Military, size: (1, 1), material: Stone, buildable: false,
+        description: "Ausgebauter Wachturm aus Stein: Sicherheit im Umkreis von 12 Feldern, Platz für zwei Schützen, größere Reichweite. Erweitert das Gebiet um 10 Felder.",
+        cost: (gold: 60, materials: {"stone": 20, "planks": 4}), build_hours: 6.0,
+        upkeep: 3,
+        services: [(kind: Safety, radius: 12)],
+        territory_radius: 10,
+        garrison: 2,
+        defense: (ranged: 8, range: 10, hit_points: 600),
+    ),
+    (
+        id: "archer_post", name: "Bogenschützenposten", plural: "Bogenschützenposten", category: Military, size: (2, 2),
+        description: "Bildet Bogen- und Armbrustschützen aus.",
+        cost: (gold: 120, materials: {"planks": 20, "stone": 15}), build_hours: 10.0,
+        workers: 2, job: (category: Military, tier: Skilled), upkeep: 4,
+        upgrade: (to: "archer_tower"),
+        services: [(kind: Safety, radius: 8)],
+        garrison: 4,
+        defense: (ranged: 6, range: 8, hit_points: 350),
+    ),
+    (
+        id: "archer_tower", name: "Schützenturm", plural: "Schützentürme", category: Military, size: (2, 2), material: Stone, buildable: false,
+        description: "Ausgebauter Bogenschützenposten mit Steinturm: bildet weiter Schützen aus, Platz für acht Schützen, schießt weiter und öfter.",
+        cost: (gold: 220, materials: {"stone": 40, "planks": 15}), build_hours: 14.0,
+        workers: 3, job: (category: Military, tier: Skilled), upkeep: 6,
+        services: [(kind: Safety, radius: 12)],
+        garrison: 8,
+        defense: (ranged: 10, range: 10, hit_points: 700),
+    ),
+    (
+        id: "stables", name: "Stallungen", category: Military, size: (3, 3),
+        description: "Bildet Kavallerie aus; jede Viehzucht stellt Pferde für vier Reiter.",
+        cost: (gold: 180, materials: {"planks": 30, "stone": 20}), build_hours: 12.0,
+        workers: 2, job: (category: Military, tier: Skilled), upkeep: 6,
+        upgrade: (to: "stud_farm"),
+        garrison: 6,
+        defense: (hit_points: 500),
+    ),
+    (
+        id: "stud_farm", name: "Gestüt", category: Military, size: (3, 3), buildable: false,
+        description: "Ausgebaute Stallungen mit Reitbahn: bildet weiter Kavallerie aus und beherbergt zehn Reiter.",
+        cost: (gold: 300, materials: {"planks": 40, "stone": 30}), build_hours: 16.0,
+        workers: 3, job: (category: Military, tier: Skilled), upkeep: 8,
+        garrison: 10,
+        defense: (hit_points: 800),
+    ),
+    (
+        id: "wall", name: "Stadtmauer", category: Military, size: (1, 1), role: WallSegment, material: Stone,
+        description: "Mauerabschnitt; wird wie eine Straße gezogen und verbindet sich automatisch.",
+        cost: (gold: 3, materials: {"stone": 3}), build_hours: 1.0,
+        defense: (hit_points: 400),
+    ),
+    (
+        id: "gate", name: "Tor", category: Military, size: (1, 1), role: Gate, material: Stone,
+        description: "Durchgang in der Stadtmauer für die eigenen Leute.",
+        cost: (gold: 25, materials: {"stone": 10, "planks": 6}), build_hours: 3.0,
+        defense: (hit_points: 300),
+        placement: [OnWallLine],
+    ),
+    (
+        id: "castle", name: "Burg", plural: "Burgen", category: Military, size: (5, 5), role: Headquarters, material: Stone,
+        description: "Hauptquartier mit Garnison und Lager; Sicherheit im Umkreis von 26 Feldern.",
+        cost: (gold: 2000, materials: {"stone": 150, "planks": 40, "iron_bars": 20}), build_hours: 60.0,
+        workers: 4, job: (category: Military, tier: Skilled), upkeep: 15,
+        services: [(kind: Safety, radius: 26), (kind: Administration, radius: 26)],
+        storage: (capacity_per_resource: 300, accepts: All, carrier_radius: 26),
+        territory_radius: 26,
+        garrison: 20,
+        defense: (ranged: 8, range: 10, hit_points: 2500),
+        placement: [MaxCount(1)],
+    ),
+]

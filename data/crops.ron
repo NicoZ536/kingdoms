@@ -1,0 +1,26 @@
+// Field crops and orchard trees (docs/game_design.md §5.3, §8.3).
+// growth_days: days until ripe at growth factor 1.0 (season, soil, moisture and weather modify
+//   the hourly growth); perennials: days until the trees bear fruit.
+// fruit_days: perennials only - fruit growth since the last harvest for a full crop.
+// yield_per_tile: harvest per field tile at full soil quality and condition.
+// sow_hours / harvest_hours: farm hours (full staffing) per field tile.
+// soil_exhaustion: fertility (0-255) one harvest takes from the field.
+#![enable(implicit_some)]
+[
+    // Sown at the start of spring, ripe early in autumn.
+    (id: "wheat",      name: "Weizen",     output: "wheat",      yield_per_tile: 32.0, growth_days: 14.0,
+        sow_seasons: [Spring], frost_kills: true, sow_hours: 0.25, harvest_hours: 0.5, soil_exhaustion: 40,
+        sprite: "wheat"),
+    (id: "barley",     name: "Gerste",     output: "grain",      yield_per_tile: 28.0, growth_days: 12.0,
+        sow_seasons: [Spring], frost_kills: true, sow_hours: 0.25, harvest_hours: 0.5, soil_exhaustion: 30,
+        sprite: "barley"),
+    // 6.5 days: sown at the start of spring and again right after the first harvest early in
+    // summer, vegetables give two harvests per year.
+    (id: "vegetables", name: "Gemüse",     output: "vegetables", yield_per_tile: 45.0, growth_days: 6.5,
+        sow_seasons: [Spring, Summer], frost_kills: true, sow_hours: 0.25, harvest_hours: 0.5, soil_exhaustion: 25,
+        sprite: "vegetables"),
+    // Perennial: trees planted in spring bear fruit from the second autumn on, then every autumn.
+    (id: "fruit",      name: "Obstbäume",  output: "fruit",      yield_per_tile: 40.0, growth_days: 18.0,
+        fruit_days: 12.0, perennial: true, sow_seasons: [Spring, Summer, Autumn], harvest_seasons: [Autumn],
+        sow_hours: 1.0, harvest_hours: 1.0, sprite: "orchard"),
+]
