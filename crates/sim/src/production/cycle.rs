@@ -217,7 +217,7 @@ fn warn_if_stuck(state: &mut GameState, defs: &Defs, id: BuildingId, def: &Build
             }
             let name = defs.resources().get(resource.index()).map_or_else(|| resource.to_string(), |r| r.name.clone());
             events.push(SimEvent::Shortage { building: id, resource, position });
-            (NotificationKind::MissingInput, format!("Rohstoffmangel: Dem Gebäude „{}“ fehlt {name}.", def.name))
+            (NotificationKind::MissingInput, format!("Dem Gebäude „{}“ fehlt {name}.", def.name))
         }
         ProductionStatus::NoResourcesInRange => (
             NotificationKind::NoResources,

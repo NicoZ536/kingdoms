@@ -1384,7 +1384,7 @@ mod tests {
         let news = vec![save::slots::SavedNotification {
             tick: 250,
             severity: kingdoms_sim::event::Severity::Warning,
-            text: "Rohstoffmangel: Dem Gebäude „Sägewerk“ fehlt Holz.".to_owned(),
+            text: "Dem Gebäude „Sägewerk“ fehlt Holz.".to_owned(),
             position: Some((12, 30)),
             repeats: 3,
             kind: kingdoms_sim::event::NotificationKind::MissingInput,

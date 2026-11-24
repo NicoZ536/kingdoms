@@ -612,10 +612,10 @@ mod tests {
             e
         };
         let missing = |text: &str, tick: u64| at(NotificationKind::MissingInput, text, Some(sawmill), tick);
-        assert!(f.first_today(&missing("Rohstoffmangel: Dem Gebäude „Sägewerk“ fehlt Holz.", clock(2, 5))));
+        assert!(f.first_today(&missing("Dem Gebäude „Sägewerk“ fehlt Holz.", clock(2, 5))));
         // Another text about the same state of the same building the same day (before and after
         // 06:00 and late in the day).
-        assert!(!f.first_today(&missing("Rohstoffmangel: Dem Gebäude „Sägewerk“ fehlt Holz und Stein.", clock(2, 7))));
+        assert!(!f.first_today(&missing("Dem Gebäude „Sägewerk“ fehlt Holz und Stein.", clock(2, 7))));
         assert!(!f.first_today(&missing("anders", clock(2, 23))));
         assert!(f.first_today(&at(NotificationKind::MissingInput, "anders", Some(BuildingId::from_raw_parts(9, 1)), clock(2, 23))), "another building");
         assert!(f.first_today(&at(NotificationKind::NoCarriers, "anders", Some(sawmill), clock(2, 23))), "another state");

@@ -3,6 +3,23 @@
 Dieses Dokument hält den Arbeitsstand fest (was fertig ist, wie es geprüft wurde, was offen ist).
 Neueste Einträge oben.
 
+## 2026-11-24 · Nachtrag: Meldungstexte ohne doppelte Art (`crates/sim`)
+
+**Fertig**
+* Die Meldungen „Familie X friert – es fehlt Holz oder Kohle.“ (`population/supply.rs`) und
+  „Dem Gebäude „X“ fehlt Y.“ (`production/cycle.rs`) beginnen nicht mehr mit „Brennstoffmangel:“
+  bzw. „Rohstoffmangel:“. Die Art steht seit Runde 11 als Überschrift auf jeder Karte, auch in der
+  Liste „Meldungen“. Statustexte im Infofenster („Rohstoffmangel: Mehl fehlt“) bleiben.
+* Test `winter_needs_fuel` filtert jetzt nach Art und Gebäude statt nach dem Textanfang.
+
+**Geprüft**
+* `cargo test --workspace`: alle grün (Spiel 249, Assetgen 69, Engine 74, Sim 421 + 9 ignoriert,
+  Kampagne 8 + 2 ignoriert, Determinismus 13, Fuzz 7, reasonable_player 2, Doctest 1).
+* `cargo clippy --workspace --all-targets -- -D warnings`: sauber.
+
+**Offen**
+* Bild 05 zeigt noch den alten Text „Brennstoffmangel: Familie Bauer friert – …“.
+
 ## 2026-11-24 · Abschlussprüfung nach Polish-Runde 11: Prüfläufe, Bilder, Audio-Lieferliste (`docs/`, `README.md`)
 
 **Fertig**
@@ -85,9 +102,8 @@ Neueste Einträge oben.
 * **Königreich** erreicht in acht Jahren keine Karte (überall fehlt die Burg) – gewollt, siehe
   game_design §1. Die Bewertung „umsichtiger Spieler“ beruht auf Skript-Spielern.
 * **Alte Spielstände:** Format 17 und älter werden abgelehnt (keine Umwandlung).
-* Karten der Arten „Rohstoffmangel“ und „Brennstoffmangel“ nennen die Art zweimal (Überschrift
-  „Brennstoffmangel“, Text „Brennstoffmangel: Familie Bauer friert – …“, Bild 05). Doppelt, nicht
-  falsch; der Text kommt aus der Simulation und steht auch in der Liste.
+* ~~Karten der Arten „Rohstoffmangel“ und „Brennstoffmangel“ nennen die Art zweimal~~ – behoben im
+  Nachtrag oben (Bild 05 zeigt noch den alten Text).
 * Die Entwickler-Stadt gerät im Winter des zweiten Jahres in Brennstoffmangel (Bild 05); sie ist
   ein Skript, kein Balance-Testspieler.
 * Bild 12 zeigt noch den Schnellspielstand aus Runde 10 (Format 17); das Bürgerfenster selbst ist

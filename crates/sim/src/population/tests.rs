@@ -160,7 +160,7 @@ fn winter_needs_fuel() {
     // The cold before the first errand and the cold now are one spell (within
     // `notices.waiting_resolved_hours`): told once, linked to the house.
     let warnings: Vec<&crate::event::Notification> =
-        events.iter().filter_map(SimEvent::notification).filter(|n| n.text.starts_with("Brennstoffmangel")).collect();
+        events.iter().filter_map(SimEvent::notification).filter(|n| n.kind == crate::event::NotificationKind::NoFuel && n.building.is_some()).collect();
     assert_eq!(warnings.len(), 1, "{warnings:?}");
     assert_eq!((warnings[0].kind, warnings[0].building), (crate::event::NotificationKind::NoFuel, Some(house)));
 }

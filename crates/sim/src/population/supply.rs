@@ -673,7 +673,7 @@ fn hourly(state: &mut GameState, defs: &Defs, ctx: &mut TickContext, id: Househo
     if !fuel_ok {
         let mut n = Notification::new(
             Severity::Warning,
-            format!("Brennstoffmangel: Familie {family} friert – es fehlt Holz oder Kohle."),
+            format!("Familie {family} friert – es fehlt Holz oder Kohle."),
         );
         if let Some(at) = at {
             n = n.at(at);
